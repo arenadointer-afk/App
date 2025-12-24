@@ -9,21 +9,18 @@ function salvar() {
   render();
 }
 
-/* ISO -> BR (NUNCA usa Date) */
 function isoParaBR(data) {
   const [ano, mes, dia] = data.split("-");
   return `${dia}/${mes}/${ano}`;
 }
 
-/* BR -> ISO */
 function brParaISO(data) {
   const [dia, mes, ano] = data.split("/");
   return `${ano}-${mes}-${dia}`;
 }
 
 function mesAnoTexto() {
-  const agora = new Date();
-  return agora.toLocaleDateString("pt-BR", {
+  return new Date().toLocaleDateString("pt-BR", {
     month: "long",
     year: "numeric"
   });
@@ -41,20 +38,20 @@ function desbloquear() {
   }
 }
 
-/* ================= RESUMO ================= */
+/* ================= RESUMO (REGRA FINAL) ================= */
+/*
+RESUMO = ESPELHO DA TELA
+Tudo que estiver VISÍVEL entra no cálculo
+*/
 
 function renderResumo() {
   let total = 0;
   let pago = 0;
 
-  const agora = new Date();
-  const mesAtual = agora.getMonth();
-  const anoAtual = agora.getFullYear();
-
   const visiveis = contas.filter(c => {
-    if (!c.paga) return true;
-    const [ano, mes] = c.vencimento.split("-");
-    return Number(mes) - 1 === mesAtual && Number(ano) === anoAtual;
+    if (filtro === "pendentes") return !c.paga;
+    if (filtro === "pagas") return c.paga;
+    return true;
   });
 
   visiveis.forEach(c => {
@@ -70,7 +67,9 @@ function renderResumo() {
     progresso === 100 ? "#2ecc71" :
     progresso >= 50 ? "#f1c40f" : "#ff4d4d";
 
-  document.getElementById("resumoMes").innerText = "📊 " + mesAnoTexto();
+  document.getElementById("resumoMes").innerText =
+    "📊 " + mesAnoTexto();
+
   document.getElementById("resumo").innerHTML = `
     💸 Total: R$ ${total.toFixed(2)}<br>
     ✅ Pago: R$ ${pago.toFixed(2)}<br>
@@ -130,7 +129,10 @@ function editarConta(i) {
 
   const nome = prompt("Nome:", c.nome);
   const valor = Number(prompt("Valor:", c.valor));
-  const dataBR = prompt("Vencimento (DD/MM/AAAA):", isoParaBR(c.vencimento));
+  const dataBR = prompt(
+    "Vencimento (DD/MM/AAAA):",
+    isoParaBR(c.vencimento)
+  );
 
   if (!nome || !valor || !dataBR) return;
 
@@ -171,7 +173,7 @@ function anexar(i) {
   input.click();
 }
 
-/* ================= HISTÓRICO ================= */
+/* ================= HISTÓRICO (POR MÊS/ANO) ================= */
 
 function abrirHistorico() {
   const lista = document.getElementById("lista");
@@ -181,19 +183,36 @@ function abrirHistorico() {
     <h3>📊 Histórico</h3>
   `;
 
+  const grupos = {};
+
   contas.forEach((c, i) => {
     if (!c.paga) return;
 
-    lista.innerHTML += `
-      <div class="conta verde">
-        <strong>${c.nome}</strong><br>
-        💰 R$ ${c.valor.toFixed(2)}<br>
-        📅 ${isoParaBR(c.vencimento)}<br>
-        ${c.comprovante ? `<a href="${c.comprovante}" target="_blank">📎 Comprovante</a><br>` : ""}
-        <button onclick="toggle(${i})">↩️ Voltar</button>
-        <button onclick="deletarConta(${i})">🗑️</button>
-      </div>
-    `;
+    const [ano, mes] = c.vencimento.split("-");
+    const chave = `${mes}/${ano}`;
+
+    if (!grupos[chave]) grupos[chave] = [];
+    grupos[chave].push({ conta: c, index: i });
+  });
+
+  Object.keys(grupos).forEach(chave => {
+    lista.innerHTML += `<h4>📅 ${chave}</h4>`;
+
+    grupos[chave].forEach(obj => {
+      const c = obj.conta;
+      const i = obj.index;
+
+      lista.innerHTML += `
+        <div class="conta verde">
+          <strong>${c.nome}</strong><br>
+          💰 R$ ${c.valor.toFixed(2)}<br>
+          📅 ${isoParaBR(c.vencimento)}<br>
+          ${c.comprovante ? `<a href="${c.comprovante}" target="_blank">📎 Comprovante</a><br>` : ""}
+          <button onclick="toggle(${i})">↩️ Voltar</button>
+          <button onclick="deletarConta(${i})">🗑️</button>
+        </div>
+      `;
+    });
   });
 }
 
@@ -214,5 +233,7 @@ function compartilhar() {
   texto += `✅ Pago: R$ ${pago.toFixed(2)}\n`;
   texto += `⏳ Falta: R$ ${(total - pago).toFixed(2)}`;
 
-  navigator.share ? navigator.share({ text: texto }) : alert(texto);
+  navigator.share
+    ? navigator.share({ text: texto })
+    : alert(texto);
 }
