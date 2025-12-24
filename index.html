@@ -2,44 +2,51 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Meus Gastos</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Controle de Contas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- 🔐 BLOQUEIO -->
-<div id="lock">
-  <div class="lock-box">
-    <h2>🔐 Desbloquear</h2>
-    <input type="password" id="pin" placeholder="Digite seu PIN">
-    <button class="principal" onclick="desbloquear()">Entrar</button>
-  </div>
+<!-- BLOQUEIO -->
+<div id="lock" class="lock">
+  <h2>🔐 Desbloquear</h2>
+  <input type="password" id="pin" placeholder="Digite seu PIN">
+  <button onclick="desbloquear()">Entrar</button>
 </div>
 
-<header class="topo">
-  <h2 id="resumoMes"></h2>
+<!-- APP -->
+<div id="app" style="display:none">
 
-  <div class="barra-container">
-    <div id="barraProgresso"></div>
+  <!-- TOPO -->
+  <div class="topo">
+    <h2 id="resumoMes">📊</h2>
+
+    <div class="barra">
+      <div id="barraProgresso"></div>
+    </div>
+
+    <div id="resumo" class="resumo"></div>
   </div>
 
-  <div id="resumo"></div>
-</header>
+  <!-- FILTROS -->
+  <div class="filtros">
+    <button onclick="filtro='todas'; render()">Todas</button>
+    <button onclick="filtro='pendentes'; render()">Pendentes</button>
+    <button onclick="filtro='pagas'; render()">Pagas</button>
+  </div>
 
-<section class="filtros">
-  <button onclick="setFiltro('todas')">Todas</button>
-  <button onclick="setFiltro('abertas')">Pendentes</button>
-  <button onclick="setFiltro('pagas')">Pagas</button>
-</section>
+  <!-- LISTA -->
+  <div id="lista"></div>
 
-<section id="lista"></section>
+  <!-- RODAPÉ -->
+  <div class="rodape">
+    <button onclick="adicionarConta()">➕ Nova conta</button>
+    <button onclick="abrirHistorico()">📊 Histórico</button>
+    <button onclick="compartilhar()">📤 Compartilhar</button>
+  </div>
 
-<footer>
-  <button class="principal" onclick="adicionarConta()">➕ Nova conta</button>
-  <button class="secundario" onclick="abrirHistorico()">📊 Histórico</button>
-  <button class="secundario" onclick="compartilhar()">📤 Compartilhar</button>
-</footer>
+</div>
 
 <script src="app.js"></script>
 </body>

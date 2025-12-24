@@ -2,116 +2,103 @@ body {
   margin: 0;
   font-family: Arial, sans-serif;
   background: #0f0f14;
-  color: #fff;
-  padding-bottom: 120px;
+  color: white;
 }
 
+/* LOCK */
+.lock {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #7b2ff7, #a445f7);
+}
+
+.lock input {
+  padding: 10px;
+  margin: 10px;
+  border-radius: 8px;
+  border: none;
+}
+
+.lock button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #1abc9c;
+  color: black;
+}
+
+/* TOPO */
 .topo {
-  background: #820ad1;
+  background: linear-gradient(135deg, #7b2ff7, #a445f7);
   padding: 15px;
-  text-align: center;
+  border-radius: 0 0 20px 20px;
 }
 
-.barra-container {
-  width: 100%;
-  height: 14px;
-  background: rgba(255,255,255,0.2);
+.barra {
+  background: rgba(255,255,255,0.3);
+  height: 8px;
   border-radius: 10px;
   margin: 10px 0;
-  overflow: hidden;
 }
 
 #barraProgresso {
   height: 100%;
   width: 0%;
   background: #ff4d4d;
-  transition: width 0.4s ease;
+  border-radius: 10px;
+  transition: 0.4s;
 }
 
-#resumo {
+.resumo {
   font-size: 14px;
-  margin-top: 8px;
 }
 
+/* FILTROS */
 .filtros {
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
   margin: 10px;
 }
 
 .filtros button {
-  margin: 5px;
-  padding: 8px 14px;
+  padding: 8px 15px;
   border-radius: 20px;
   border: none;
-  background: #2a2a35;
+  background: #2c2c3a;
   color: white;
 }
 
+/* CONTAS */
 .conta {
-  background: #1a1a23;
+  background: #1c1c26;
   margin: 10px;
   padding: 15px;
-  border-radius: 12px;
+  border-radius: 15px;
+  border-right: 5px solid red;
 }
 
-.verde { border-right: 6px solid #2ecc71; }
-.vermelho { border-right: 6px solid #ff4d4d; }
+.conta.verde {
+  border-right: 5px solid #2ecc71;
+}
 
 .conta button {
-  margin: 4px 3px;
+  margin: 5px 3px;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 8px;
 }
 
-footer {
+/* RODAPÉ */
+.rodape {
   position: fixed;
   bottom: 0;
   width: 100%;
+  background: #111;
   display: flex;
-  gap: 8px;
+  justify-content: space-around;
   padding: 10px;
-  background: #0f0f14;
-}
-
-.principal, .secundario {
-  flex: 1;
-  padding: 12px;
-  border-radius: 14px;
-  border: none;
-  color: white;
-}
-
-.principal { background: #820ad1; }
-.secundario { background: #2a2a35; }
-
-#lock {
-  position: fixed;
-  inset: 0;
-  background: #0f0f14;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 999;
-}
-
-.lock-box {
-  background: #1a1a23;
-  padding: 20px;
-  border-radius: 14px;
-  width: 90%;
-  max-width: 320px;
-  text-align: center;
-}
-
-.lock-box input {
-  width: 100%;
-  padding: 10px;
-  margin: 10px 0;
-  border-radius: 10px;
-  border: none;
-}
-
-.historico-mes {
-  background: #1a1a24;
-  margin: 12px;
-  padding: 12px;
-  border-radius: 12px;
 }

@@ -1,74 +1,76 @@
+const PIN = "2007";
 let contas = JSON.parse(localStorage.getItem("contas")) || [];
 let filtro = "todas";
-const PIN = "2007";
 
 /* ================= UTIL ================= */
-
-function brParaISO(data) {
-  const [d, m, a] = data.split("/");
-  return `${a}-${m}-${d}`;
-}
-
-function isoParaBR(data) {
-  return new Date(data).toLocaleDateString("pt-BR");
-}
-
-function mesAnoTexto(data = new Date()) {
-  return data.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-}
-
-/* ================= BLOQUEIO ================= */
-
-function desbloquear() {
-  if (document.getElementById("pin").value === PIN) {
-    document.getElementById("lock").style.display = "none";
-    render();
-  } else {
-    alert("PIN incorreto");
-  }
-}
-
-/* ================= SALVAR ================= */
 
 function salvar() {
   localStorage.setItem("contas", JSON.stringify(contas));
   render();
 }
 
-/* ================= FILTRO ================= */
-
-function setFiltro(f) {
-  filtro = f;
-  render();
+/* ISO -> BR (NUNCA usa Date) */
+function isoParaBR(data) {
+  const [ano, mes, dia] = data.split("-");
+  return `${dia}/${mes}/${ano}`;
 }
 
-/* ================= RESUMO + BARRA ================= */
+/* BR -> ISO */
+function brParaISO(data) {
+  const [dia, mes, ano] = data.split("/");
+  return `${ano}-${mes}-${dia}`;
+}
+
+function mesAnoTexto() {
+  const agora = new Date();
+  return agora.toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric"
+  });
+}
+
+/* ================= LOCK ================= */
+
+function desbloquear() {
+  if (document.getElementById("pin").value === PIN) {
+    document.getElementById("lock").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    render();
+  } else {
+    alert("PIN incorreto");
+  }
+}
+
+/* ================= RESUMO ================= */
 
 function renderResumo() {
-  const agora = new Date();
-  const mes = agora.getMonth();
-  const ano = agora.getFullYear();
-
   let total = 0;
   let pago = 0;
 
-  contas.forEach(c => {
-    const d = new Date(c.vencimento);
-    if (d.getMonth() === mes && d.getFullYear() === ano) {
-      total += c.valor;
-      if (c.paga) pago += c.valor;
-    }
+  const agora = new Date();
+  const mesAtual = agora.getMonth();
+  const anoAtual = agora.getFullYear();
+
+  const visiveis = contas.filter(c => {
+    if (!c.paga) return true;
+    const [ano, mes] = c.vencimento.split("-");
+    return Number(mes) - 1 === mesAtual && Number(ano) === anoAtual;
+  });
+
+  visiveis.forEach(c => {
+    total += c.valor;
+    if (c.paga) pago += c.valor;
   });
 
   const progresso = total ? Math.round((pago / total) * 100) : 0;
-  const barra = document.getElementById("barraProgresso");
 
+  const barra = document.getElementById("barraProgresso");
   barra.style.width = progresso + "%";
   barra.style.background =
     progresso === 100 ? "#2ecc71" :
     progresso >= 50 ? "#f1c40f" : "#ff4d4d";
 
-  document.getElementById("resumoMes").innerText = `📊 ${mesAnoTexto()}`;
+  document.getElementById("resumoMes").innerText = "📊 " + mesAnoTexto();
   document.getElementById("resumo").innerHTML = `
     💸 Total: R$ ${total.toFixed(2)}<br>
     ✅ Pago: R$ ${pago.toFixed(2)}<br>
@@ -76,64 +78,47 @@ function renderResumo() {
   `;
 }
 
-/* ================= RENDER ================= */
+/* ================= LISTA ================= */
 
 function render() {
   renderResumo();
   const lista = document.getElementById("lista");
   lista.innerHTML = "";
 
-  const agora = new Date();
-  const mesAtual = agora.getMonth();
-  const anoAtual = agora.getFullYear();
+  contas.forEach((c, i) => {
+    if (
+      filtro === "pendentes" && c.paga ||
+      filtro === "pagas" && !c.paga
+    ) return;
 
-  const visiveis = contas.filter(c => {
-    const d = new Date(c.vencimento);
-    if (!c.paga) return true;
-    return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+    lista.innerHTML += `
+      <div class="conta ${c.paga ? "verde" : ""}">
+        <strong>${c.nome}</strong><br>
+        💰 R$ ${c.valor.toFixed(2)}<br>
+        📅 ${isoParaBR(c.vencimento)}<br>
+
+        ${!c.paga ? `<button onclick="toggle(${i})">✅ Marcar paga</button>` : ""}
+        <button onclick="editarConta(${i})">✏️</button>
+        <button onclick="anexar(${i})">📎</button>
+        <button onclick="deletarConta(${i})">🗑️</button>
+      </div>
+    `;
   });
-
-  visiveis
-    .sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento))
-    .forEach(c => {
-      if (filtro === "pagas" && !c.paga) return;
-      if (filtro === "abertas" && c.paga) return;
-
-      const i = contas.indexOf(c);
-
-      lista.innerHTML += `
-        <div class="conta ${c.paga ? "verde" : "vermelho"}">
-          <strong>${c.nome}</strong><br>
-          💰 R$ ${c.valor.toFixed(2)}<br>
-          📅 ${isoParaBR(c.vencimento)}<br>
-          ${c.comprovante ? `<a href="${c.comprovante}" target="_blank">📎 Comprovante</a><br>` : ""}
-          <button onclick="toggle(${i})">${c.paga ? "❌ Desmarcar" : "✅ Marcar paga"}</button>
-          <button onclick="editarConta(${i})">✏️</button>
-          <button onclick="anexarComprovante(${i})">📎</button>
-          <button onclick="deletarConta(${i})">🗑️</button>
-        </div>
-      `;
-    });
 }
 
 /* ================= AÇÕES ================= */
 
-function toggle(i) {
-  contas[i].paga = !contas[i].paga;
-  salvar();
-}
-
 function adicionarConta() {
-  const nome = prompt("Nome:");
-  const valor = prompt("Valor:");
-  const data = prompt("Vencimento (DD/MM/AAAA):");
+  const nome = prompt("Nome da conta:");
+  const valor = Number(prompt("Valor:"));
+  const dataBR = prompt("Vencimento (DD/MM/AAAA):");
 
-  if (!nome || !valor || !data) return;
+  if (!nome || !valor || !dataBR) return;
 
   contas.push({
     nome,
-    valor: Number(valor),
-    vencimento: brParaISO(data),
+    valor,
+    vencimento: brParaISO(dataBR),
     paga: false
   });
 
@@ -144,20 +129,25 @@ function editarConta(i) {
   const c = contas[i];
 
   const nome = prompt("Nome:", c.nome);
-  const valor = prompt("Valor:", c.valor);
-  const data = prompt("Vencimento (DD/MM/AAAA):", isoParaBR(c.vencimento));
+  const valor = Number(prompt("Valor:", c.valor));
+  const dataBR = prompt("Vencimento (DD/MM/AAAA):", isoParaBR(c.vencimento));
 
-  if (!nome || !valor || !data) return;
+  if (!nome || !valor || !dataBR) return;
 
   c.nome = nome;
-  c.valor = Number(valor);
-  c.vencimento = brParaISO(data);
+  c.valor = valor;
+  c.vencimento = brParaISO(dataBR);
 
   salvar();
 }
 
+function toggle(i) {
+  contas[i].paga = !contas[i].paga;
+  salvar();
+}
+
 function deletarConta(i) {
-  if (confirm("Apagar conta?")) {
+  if (confirm("Deseja excluir esta conta?")) {
     contas.splice(i, 1);
     salvar();
   }
@@ -165,38 +155,20 @@ function deletarConta(i) {
 
 /* ================= COMPROVANTE ================= */
 
-function anexarComprovante(i) {
+function anexar(i) {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = "image/*,application/pdf";
 
-  input.onchange = () => {
+  input.onchange = e => {
     const reader = new FileReader();
     reader.onload = () => {
       contas[i].comprovante = reader.result;
       salvar();
     };
-    reader.readAsDataURL(input.files[0]);
+    reader.readAsDataURL(e.target.files[0]);
   };
 
   input.click();
-}
-
-/* ================= WHATSAPP ================= */
-
-function compartilhar() {
-  let texto = `📋 Contas - ${mesAnoTexto()}\n\n`;
-  let pago = 0;
-  let pendente = 0;
-
-  contas.forEach(c => {
-    c.paga ? pago += c.valor : pendente += c.valor;
-    texto += `${c.nome} - R$ ${c.valor.toFixed(2)} - ${isoParaBR(c.vencimento)} ( status ${c.paga ? "pago ✅" : "pendente ⚠️"} )\n`;
-  });
-
-  texto += `\n💰 Pago: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${pendente.toFixed(2)}`;
-
-  window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`);
 }
 
 /* ================= HISTÓRICO ================= */
@@ -205,28 +177,42 @@ function abrirHistorico() {
   const lista = document.getElementById("lista");
 
   lista.innerHTML = `
-    <button onclick="render()" style="margin:10px">⬅ Voltar</button>
+    <button onclick="render()">⬅ Voltar</button>
     <h3>📊 Histórico</h3>
   `;
 
-  const grupos = {};
+  contas.forEach((c, i) => {
+    if (!c.paga) return;
 
-  contas.filter(c => c.paga).forEach(c => {
-    const d = new Date(c.vencimento);
-    const k = `${d.getMonth() + 1}/${d.getFullYear()}`;
-    if (!grupos[k]) grupos[k] = [];
-    grupos[k].push(c);
+    lista.innerHTML += `
+      <div class="conta verde">
+        <strong>${c.nome}</strong><br>
+        💰 R$ ${c.valor.toFixed(2)}<br>
+        📅 ${isoParaBR(c.vencimento)}<br>
+        ${c.comprovante ? `<a href="${c.comprovante}" target="_blank">📎 Comprovante</a><br>` : ""}
+        <button onclick="toggle(${i})">↩️ Voltar</button>
+        <button onclick="deletarConta(${i})">🗑️</button>
+      </div>
+    `;
+  });
+}
+
+/* ================= COMPARTILHAR ================= */
+
+function compartilhar() {
+  let texto = `📊 ${mesAnoTexto()}\n\n`;
+  let total = 0;
+  let pago = 0;
+
+  contas.forEach(c => {
+    texto += `${c.nome} - R$ ${c.valor.toFixed(2)} - ${isoParaBR(c.vencimento)} - ${c.paga ? "pago ✅" : "pendente ⚠️"}\n`;
+    total += c.valor;
+    if (c.paga) pago += c.valor;
   });
 
-  Object.keys(grupos).forEach(m => {
-    lista.innerHTML += `<div class="historico-mes"><h4>${m}</h4></div>`;
-    grupos[m].forEach(c => {
-      lista.innerHTML += `
-        <div class="conta verde">
-          ${c.nome} - R$ ${c.valor.toFixed(2)}
-          ${c.comprovante ? `<a href="${c.comprovante}" target="_blank"> 📎</a>` : ""}
-        </div>
-      `;
-    });
-  });
+  texto += `\n💸 Total: R$ ${total.toFixed(2)}\n`;
+  texto += `✅ Pago: R$ ${pago.toFixed(2)}\n`;
+  texto += `⏳ Falta: R$ ${(total - pago).toFixed(2)}`;
+
+  navigator.share ? navigator.share({ text: texto }) : alert(texto);
 }
