@@ -3,58 +3,48 @@ body {
   font-family: Arial, sans-serif;
   background: #0f0f14;
   color: #fff;
-
-  /* 👇 ESSENCIAL para não cortar a lista */
-  padding-bottom: 110px;
+  padding-bottom: 120px;
 }
 
-/* ===== TOPO ===== */
 .topo {
   background: #820ad1;
-  padding: 15px;
-}
-
-.perfil {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.perfil img {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: #ddd;
-}
-
-.ola {
-  font-size: 14px;
-  opacity: 0.8;
-}
-
-/* ===== RESUMO ===== */
-.resumo {
   padding: 15px;
   text-align: center;
 }
 
-#total {
-  margin-bottom: 10px;
+.barra-container {
+  width: 100%;
+  height: 14px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+  margin: 10px 0;
+  overflow: hidden;
+}
+
+#barraProgresso {
+  height: 100%;
+  width: 0%;
+  background: #ff4d4d;
+  transition: width 0.4s ease;
+}
+
+#resumo {
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.filtros {
+  text-align: center;
+  margin: 10px;
 }
 
 .filtros button {
   margin: 5px;
-  padding: 8px 12px;
-  border: none;
+  padding: 8px 14px;
   border-radius: 20px;
+  border: none;
   background: #2a2a35;
-  color: #fff;
-}
-
-/* ===== LISTA ===== */
-#lista {
-  padding-bottom: 20px;
+  color: white;
 }
 
 .conta {
@@ -64,64 +54,48 @@ body {
   border-radius: 12px;
 }
 
-/* CORES */
-.vermelho { border-left: 6px solid #ff4d4d; }
-.amarelo { border-left: 6px solid #f1c40f; }
-.verde { border-left: 6px solid #2ecc71; }
+.verde { border-right: 6px solid #2ecc71; }
+.vermelho { border-right: 6px solid #ff4d4d; }
 
-/* ===== FOOTER RESPONSIVO ===== */
+.conta button {
+  margin: 4px 3px;
+}
+
 footer {
   position: fixed;
   bottom: 0;
-  left: 0;
   width: 100%;
-
-  background: #0f0f14;
-  padding: 10px;
-
   display: flex;
   gap: 8px;
-  justify-content: center;
-
-  box-shadow: 0 -4px 20px rgba(0,0,0,.4);
+  padding: 10px;
+  background: #0f0f14;
 }
 
-footer button {
+.principal, .secundario {
   flex: 1;
-  font-size: 14px;
   padding: 12px;
   border-radius: 14px;
-  min-width: 0;
-}
-
-/* BOTÕES */
-.principal {
-  background: #820ad1;
-  color: white;
   border: none;
-}
-
-.secundario {
-  background: #2a2a35;
   color: white;
-  border: none;
 }
 
-/* ===== TELA DE BLOQUEIO ===== */
+.principal { background: #820ad1; }
+.secundario { background: #2a2a35; }
+
 #lock {
   position: fixed;
   inset: 0;
   background: #0f0f14;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   z-index: 999;
 }
 
 .lock-box {
   background: #1a1a23;
   padding: 20px;
-  border-radius: 15px;
+  border-radius: 14px;
   width: 90%;
   max-width: 320px;
   text-align: center;
@@ -130,28 +104,14 @@ footer button {
 .lock-box input {
   width: 100%;
   padding: 10px;
-  margin-top: 10px;
+  margin: 10px 0;
   border-radius: 10px;
   border: none;
-  text-align: center;
-  font-size: 18px;
 }
 
-/* ===== HISTÓRICO ===== */
 .historico-mes {
-  margin-top: 20px;
-  padding: 12px;
   background: #1a1a24;
+  margin: 12px;
+  padding: 12px;
   border-radius: 12px;
-}
-
-/* ===== MOBILE ===== */
-@media (max-width: 600px) {
-  footer {
-    padding: 8px;
-  }
-
-  footer button {
-    font-size: 13px;
-  }
 }

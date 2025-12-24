@@ -4,13 +4,11 @@
   <meta charset="UTF-8">
   <title>Meus Gastos</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- 🔐 TELA DE BLOQUEIO -->
+<!-- 🔐 BLOQUEIO -->
 <div id="lock">
   <div class="lock-box">
     <h2>🔐 Desbloquear</h2>
@@ -20,24 +18,19 @@
 </div>
 
 <header class="topo">
-  <div class="perfil">
-    <img id="fotoPerfil" src="" alt="Perfil" onclick="trocarFoto()">
-    <input type="file" id="inputFoto" accept="image/*" hidden>
-    <div>
-      <span class="ola">Olá,</span>
-      <strong>Sutello</strong>
-    </div>
+  <h2 id="resumoMes"></h2>
+
+  <div class="barra-container">
+    <div id="barraProgresso"></div>
   </div>
+
+  <div id="resumo"></div>
 </header>
 
-<section class="resumo">
-  <h2 id="total"></h2>
-
-  <div class="filtros">
-    <button onclick="setFiltro('todas')">Todas</button>
-    <button onclick="setFiltro('abertas')">Não pagas</button>
-    <button onclick="setFiltro('pagas')">Pagas</button>
-  </div>
+<section class="filtros">
+  <button onclick="setFiltro('todas')">Todas</button>
+  <button onclick="setFiltro('abertas')">Pendentes</button>
+  <button onclick="setFiltro('pagas')">Pagas</button>
 </section>
 
 <section id="lista"></section>
