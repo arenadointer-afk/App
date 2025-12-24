@@ -3,14 +3,37 @@ body {
   font-family: Arial, sans-serif;
   background: #0f0f14;
   color: #fff;
+
+  /* 👇 ESSENCIAL para não cortar a lista */
+  padding-bottom: 110px;
 }
 
-header {
+/* ===== TOPO ===== */
+.topo {
   background: #820ad1;
-  padding: 20px;
-  text-align: center;
+  padding: 15px;
 }
 
+.perfil {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.perfil img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ddd;
+}
+
+.ola {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* ===== RESUMO ===== */
 .resumo {
   padding: 15px;
   text-align: center;
@@ -29,6 +52,11 @@ header {
   color: #fff;
 }
 
+/* ===== LISTA ===== */
+#lista {
+  padding-bottom: 20px;
+}
+
 .conta {
   background: #1a1a23;
   margin: 10px;
@@ -36,20 +64,25 @@ header {
   border-radius: 12px;
 }
 
+/* CORES */
 .vermelho { border-left: 6px solid #ff4d4d; }
 .amarelo { border-left: 6px solid #f1c40f; }
 .verde { border-left: 6px solid #2ecc71; }
 
+/* ===== FOOTER RESPONSIVO ===== */
 footer {
   position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
+
   background: #0f0f14;
   padding: 10px;
+
   display: flex;
   gap: 8px;
-  justify-content: space-between;
+  justify-content: center;
+
   box-shadow: 0 -4px 20px rgba(0,0,0,.4);
 }
 
@@ -58,24 +91,22 @@ footer button {
   font-size: 14px;
   padding: 12px;
   border-radius: 14px;
+  min-width: 0;
 }
 
+/* BOTÕES */
 .principal {
-  flex: 1;
   background: #820ad1;
   color: white;
   border: none;
-  border-radius: 10px;
-  padding: 12px;
 }
 
 .secundario {
   background: #2a2a35;
   color: white;
   border: none;
-  border-radius: 10px;
-  padding: 12px;
 }
+
 /* ===== TELA DE BLOQUEIO ===== */
 #lock {
   position: fixed;
@@ -106,46 +137,21 @@ footer button {
   font-size: 18px;
 }
 
-/* ===== RESPONSIVO ===== */
-@media (max-width: 600px) {
-  header h1 {
-    font-size: 20px;
-  }
-
-  .conta {
-    font-size: 14px;
-  }
-}
-.topo {
-  background: #820ad1;
-  padding: 15px;
-}
-
-.perfil {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.perfil img {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: #ddd;
-}
-
-.ola {
-  font-size: 14px;
-  opacity: 0.8;
-}
-.conta.aberta { background: #1e1e1e; }
-.conta.alerta { background: #4a4a00; }
-.conta.urgente { background: #4a0000; }
-.conta.paga { background: #004a00; }
+/* ===== HISTÓRICO ===== */
 .historico-mes {
   margin-top: 20px;
   padding: 12px;
   background: #1a1a24;
   border-radius: 12px;
+}
+
+/* ===== MOBILE ===== */
+@media (max-width: 600px) {
+  footer {
+    padding: 8px;
+  }
+
+  footer button {
+    font-size: 13px;
+  }
 }
