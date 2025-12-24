@@ -1,0 +1,151 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f0f14;
+  color: #fff;
+}
+
+header {
+  background: #820ad1;
+  padding: 20px;
+  text-align: center;
+}
+
+.resumo {
+  padding: 15px;
+  text-align: center;
+}
+
+#total {
+  margin-bottom: 10px;
+}
+
+.filtros button {
+  margin: 5px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 20px;
+  background: #2a2a35;
+  color: #fff;
+}
+
+.conta {
+  background: #1a1a23;
+  margin: 10px;
+  padding: 15px;
+  border-radius: 12px;
+}
+
+.vermelho { border-left: 6px solid #ff4d4d; }
+.amarelo { border-left: 6px solid #f1c40f; }
+.verde { border-left: 6px solid #2ecc71; }
+
+footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: #0f0f14;
+  padding: 10px;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  box-shadow: 0 -4px 20px rgba(0,0,0,.4);
+}
+
+footer button {
+  flex: 1;
+  font-size: 14px;
+  padding: 12px;
+  border-radius: 14px;
+}
+
+.principal {
+  flex: 1;
+  background: #820ad1;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.secundario {
+  background: #2a2a35;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+}
+/* ===== TELA DE BLOQUEIO ===== */
+#lock {
+  position: fixed;
+  inset: 0;
+  background: #0f0f14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.lock-box {
+  background: #1a1a23;
+  padding: 20px;
+  border-radius: 15px;
+  width: 90%;
+  max-width: 320px;
+  text-align: center;
+}
+
+.lock-box input {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 10px;
+  border: none;
+  text-align: center;
+  font-size: 18px;
+}
+
+/* ===== RESPONSIVO ===== */
+@media (max-width: 600px) {
+  header h1 {
+    font-size: 20px;
+  }
+
+  .conta {
+    font-size: 14px;
+  }
+}
+.topo {
+  background: #820ad1;
+  padding: 15px;
+}
+
+.perfil {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.perfil img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ddd;
+}
+
+.ola {
+  font-size: 14px;
+  opacity: 0.8;
+}
+.conta.aberta { background: #1e1e1e; }
+.conta.alerta { background: #4a4a00; }
+.conta.urgente { background: #4a0000; }
+.conta.paga { background: #004a00; }
+.historico-mes {
+  margin-top: 20px;
+  padding: 12px;
+  background: #1a1a24;
+  border-radius: 12px;
+}

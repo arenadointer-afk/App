@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Meus Gastos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 🔐 TELA DE BLOQUEIO -->
+<div id="lock">
+  <div class="lock-box">
+    <h2>🔐 Desbloquear</h2>
+    <input type="password" id="pin" placeholder="Digite seu PIN">
+    <button class="principal" onclick="desbloquear()">Entrar</button>
+  </div>
+</div>
+
+<header class="topo">
+  <div class="perfil">
+    <img id="fotoPerfil" src="" alt="Perfil" onclick="trocarFoto()">
+    <input type="file" id="inputFoto" accept="image/*" hidden>
+    <div>
+      <span class="ola">Olá,</span>
+      <strong>Sutello</strong>
+    </div>
+  </div>
+</header>
+
+<section class="resumo">
+  <h2 id="total"></h2>
+
+  <div class="filtros">
+    <button onclick="setFiltro('todas')">Todas</button>
+    <button onclick="setFiltro('abertas')">Não pagas</button>
+    <button onclick="setFiltro('pagas')">Pagas</button>
+  </div>
+</section>
+
+<section id="lista"></section>
+
+<footer>
+  <button class="principal" onclick="adicionarConta()">➕ Nova conta</button>
+<button class="secundario" onclick="abrirHistorico()">📊 Histórico</button>
+  <button class="secundario" onclick="compartilhar()">📤 Compartilhar</button>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
