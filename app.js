@@ -35,7 +35,6 @@ function desbloquear() {
     lock.style.display = "none";
     app.style.display = "block";
 
-    // remove aviso e barra do topo
     document.getElementById("avisoSwipe")?.remove();
     document.querySelector(".barra")?.remove();
 
@@ -87,13 +86,10 @@ function render() {
   Object.keys(grupos).forEach(k => {
     const visiveis = grupos[k].filter(c => {
 
-      // Aba PAGAS → mostra todas pagas (mesmo ocultas)
       if (filtro === "pagas") return c.paga;
-
-      // Outras abas → não mostra ocultas
       if (c.oculta) return false;
-
       if (filtro === "pendentes" && c.paga) return false;
+
       return true;
     });
 
@@ -126,7 +122,6 @@ function render() {
         </div>
       `;
 
-      // SWIPE
       let startX = 0;
       div.addEventListener("touchstart", e => startX = e.touches[0].clientX);
       div.addEventListener("touchend", e => {
@@ -158,13 +153,22 @@ function marcarPaga(i) {
   c.dataPagamento = new Date().toISOString().split("T")[0];
 
   if (c.recorrente) {
-    contas.push({
-      ...c,
-      paga: false,
-      oculta: false,
-      dataPagamento: null,
-      vencimento: proximoMes(c.vencimento)
-    });
+    let gerar = true;
+
+    if (typeof c.repeticoes === "number") {
+      c.repeticoes--;
+      if (c.repeticoes <= 0) gerar = false;
+    }
+
+    if (gerar) {
+      contas.push({
+        ...c,
+        paga: false,
+        oculta: false,
+        dataPagamento: null,
+        vencimento: proximoMes(c.vencimento)
+      });
+    }
   }
   salvar();
 }
@@ -178,8 +182,20 @@ function adicionarConta() {
   const nome = prompt("Nome da conta:");
   const valor = Number(prompt("Valor:"));
   const data = prompt("Vencimento (DD/MM/AAAA):");
-  const recorrente = confirm("Conta mensal recorrente?");
   if (!nome || !valor || !data) return;
+
+  let recorrente = confirm("Conta recorrente?");
+  let repeticoes = null;
+
+  if (recorrente) {
+    const r = prompt(
+      "Quantos meses essa conta deve se repetir?\n\n" +
+      "• Vazio ou 0 = todos os meses\n" +
+      "• Exemplo: 3"
+    );
+    const n = Number(r);
+    if (n > 0) repeticoes = n;
+  }
 
   contas.push({
     nome,
@@ -187,6 +203,7 @@ function adicionarConta() {
     vencimento: brParaISO(data),
     paga: false,
     recorrente,
+    repeticoes,
     oculta: false,
     dataPagamento: null
   });
