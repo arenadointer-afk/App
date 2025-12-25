@@ -9,87 +9,129 @@ body {
 .lock {
   height: 100vh;
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #7b2ff7, #a445f7);
+  flex-direction: column;
+  background: linear-gradient(135deg,#7b2ff7,#a445f7);
 }
 
-.lock input {
+.lock input, .lock button {
   padding: 10px;
-  margin: 10px;
+  margin: 8px;
   border-radius: 8px;
   border: none;
-}
-
-.lock button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  background: #1abc9c;
-  color: black;
 }
 
 /* TOPO */
 .topo {
-  background: linear-gradient(135deg, #7b2ff7, #a445f7);
+  background: linear-gradient(135deg,#7b2ff7,#a445f7);
   padding: 15px;
-  border-radius: 0 0 20px 20px;
+  border-radius: 0 0 25px 25px;
 }
 
-.barra {
-  background: rgba(255,255,255,0.3);
-  height: 8px;
-  border-radius: 10px;
+.perfil {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.perfil img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #333;
+  cursor: pointer;
+  object-fit: cover;
+}
+
+.aviso {
+  background: rgba(0,0,0,.3);
+  padding: 8px;
+  border-radius: 12px;
+  font-size: 13px;
+  display: flex;
+  justify-content: spaceúbetween;
   margin: 10px 0;
+}
+
+.aviso span {
+  cursor: pointer;
+}
+
+/* RESUMO */
+.barra {
+  height: 8px;
+  background: rgba(255,255,255,.3);
+  border-radius: 10px;
+  margin-top: 8px;
 }
 
 #barraProgresso {
   height: 100%;
   width: 0%;
-  background: #ff4d4d;
   border-radius: 10px;
-  transition: 0.4s;
+  transition: .3s;
 }
 
 .resumo {
   font-size: 14px;
+  margin-top: 8px;
 }
 
 /* FILTROS */
 .filtros {
   display: flex;
   justify-content: center;
-  gap: 10px;
-  margin: 10px;
+  gap: 8px;
+  margin: 12px;
 }
 
 .filtros button {
-  padding: 8px 15px;
-  border-radius: 20px;
-  border: none;
-  background: #2c2c3a;
+  padding: 8px 18px;
+  border-radius: 25px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.15);
   color: white;
+}
+
+.filtros button.ativo {
+  background: white;
+  color: #7b2ff7;
+}
+
+/* LISTA */
+.lista {
+  overflow-y: auto;
+  height: calc(100vh - 300px);
 }
 
 /* CONTAS */
 .conta {
-  background: #1c1c26;
+  background: linear-gradient(135deg,#1c1c26,#16161f);
   margin: 10px;
   padding: 15px;
-  border-radius: 15px;
+  border-radius: 18px;
   border-right: 5px solid red;
+  transition: transform .25s ease, background .25s ease;
 }
 
 .conta.verde {
   border-right: 5px solid #2ecc71;
 }
 
-.conta button {
-  margin: 5px 3px;
+.acoes {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.acoes button {
+  background: rgba(255,255,255,.15);
   border: none;
-  border-radius: 5px;
+  color: white;
   padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 13px;
 }
 
 /* RODAPÉ */
