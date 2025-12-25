@@ -8,19 +8,25 @@
 </head>
 <body>
 
-<!-- BLOQUEIO -->
 <div id="lock" class="lock">
   <h2>🔐 Desbloquear</h2>
   <input type="password" id="pin" placeholder="Digite seu PIN">
   <button onclick="desbloquear()">Entrar</button>
 </div>
 
-<!-- APP -->
 <div id="app" style="display:none">
 
-  <!-- TOPO -->
   <div class="topo">
-    <h2 id="resumoMes">📊</h2>
+    <div class="perfil">
+      <img id="fotoPerfil">
+      <input type="file" id="uploadFoto" hidden>
+      <h2>Olá, sutello 👋</h2>
+    </div>
+
+    <div id="avisoSwipe" class="aviso">
+      💡 👉 Ocultar | 👈 Marcar como paga
+      <span onclick="fecharAviso()">✖</span>
+    </div>
 
     <div class="barra">
       <div id="barraProgresso"></div>
@@ -29,17 +35,14 @@
     <div id="resumo" class="resumo"></div>
   </div>
 
-  <!-- FILTROS -->
   <div class="filtros">
-    <button onclick="filtro='todas'; render()">Todas</button>
-    <button onclick="filtro='pendentes'; render()">Pendentes</button>
-    <button onclick="filtro='pagas'; render()">Pagas</button>
+    <button class="ativo" onclick="setFiltro('todas', this)">Todas</button>
+    <button onclick="setFiltro('pendentes', this)">Pendentes</button>
+    <button onclick="setFiltro('pagas', this)">Pagas</button>
   </div>
 
-  <!-- LISTA -->
-  <div id="lista"></div>
+  <div id="lista" class="lista"></div>
 
-  <!-- RODAPÉ -->
   <div class="rodape">
     <button onclick="adicionarConta()">➕ Nova conta</button>
     <button onclick="abrirHistorico()">📊 Histórico</button>
