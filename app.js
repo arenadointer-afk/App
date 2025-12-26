@@ -319,51 +319,80 @@ function compartilharMes(mes) {
 /* ================= PDF ================= */
 function baixarPdfMes(mes) {
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF();
+
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4"
+  });
+
+  const hoje = new Date();
+  const dataRelatorio = hoje.toLocaleDateString("pt-BR");
 
   let y = 15;
   let total = 0, pago = 0;
 
-  pdf.setFontSize(16);
+  /* ===== CABEÇALHO ===== */
+  pdf.setFontSize(14);
   pdf.text("Controle de Contas", 105, y, { align: "center" });
   y += 8;
 
-  pdf.setFontSize(12);
-  pdf.text(`Mês: ${mes}`, 105, y, { align: "center" });
-  y += 10;
+  pdf.setFontSize(11);
+  pdf.text("Leonardo Vilanova Sutello", 10, y);
+  y += 6;
 
-  pdf.setFontSize(10);
-  pdf.text("Conta", 10, y);
-  pdf.text("Valor", 110, y);
-  pdf.text("Venc.", 140, y);
-  pdf.text("Status", 170, y);
-  y += 5;
+  pdf.text("CPF: 044.972.160-47", 10, y); // ← ajuste se quiser
+  y += 6;
+
+  pdf.text(`Mês: ${mes}`, 10, y);
+  pdf.text(`Data do relatório: ${dataRelatorio}`, 200, y, { align: "right" });
+  y += 8;
 
   pdf.line(10, y, 200, y);
-  y += 5;
+  y += 6;
 
+  /* ===== CABEÇALHO TABELA ===== */
+  pdf.setFontSize(10);
+  pdf.text("Conta", 10, y);
+  pdf.text("Valor", 90, y);
+  pdf.text("Vencimento", 120, y);
+  pdf.text("Pagamento", 155, y);
+  y += 4;
+
+  pdf.line(10, y, 200, y);
+  y += 6;
+
+  /* ===== CONTAS ===== */
   contas.forEach(c => {
     if (mesAno(c.vencimento) !== mes) return;
 
     total += c.valor;
     if (c.paga) pago += c.valor;
 
-    pdf.text(c.nome.substring(0, 25), 10, y);
-    pdf.text(`R$ ${c.valor.toFixed(2)}`, 110, y);
-    pdf.text(isoParaBR(c.vencimento), 140, y);
-    pdf.text(c.paga ? "Pago" : "Pendente", 170, y);
+    pdf.text(c.nome, 10, y);
+    pdf.text(`R$ ${c.valor.toFixed(2)}`, 90, y);
+    pdf.text(isoParaBR(c.vencimento), 120, y);
+
+    if (c.paga && c.dataPagamento) {
+      pdf.text(isoParaBR(c.dataPagamento), 155, y);
+    } else {
+      pdf.text("-", 155, y);
+    }
 
     y += 6;
+
     if (y > 280) {
       pdf.addPage();
-      y = 15;
+      y = 20;
     }
   });
 
-  y += 8;
+  /* ===== RESUMO ===== */
+  y += 6;
   pdf.line(10, y, 200, y);
   y += 8;
 
+  pdf.setFontSize(11);
   pdf.text(`Total: R$ ${total.toFixed(2)}`, 10, y);
   y += 6;
   pdf.text(`Pago: R$ ${pago.toFixed(2)}`, 10, y);
