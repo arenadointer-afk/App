@@ -306,3 +306,36 @@ function compartilharMes(mes) {
   texto += `\n💰 Total: R$ ${total.toFixed(2)}\n✅ Pago: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${(total - pago).toFixed(2)}`;
   navigator.share ? navigator.share({ text: texto }) : alert(texto);
 }
+/* ===== CALCULADORA ===== */
+let calcExpressao = "";
+
+function abrirCalculadora() {
+  document.getElementById("modalCalc").style.display = "flex";
+}
+
+function fecharCalculadora() {
+  document.getElementById("modalCalc").style.display = "none";
+}
+
+function calcAdd(v) {
+  calcExpressao += v;
+  document.getElementById("calcDisplay").value = calcExpressao;
+}
+
+function calcLimpar() {
+  calcExpressao = "";
+  document.getElementById("calcDisplay").value = "";
+}
+
+function calcCalcular() {
+  try {
+    calcExpressao = eval(calcExpressao).toString();
+    document.getElementById("calcDisplay").value = calcExpressao;
+  } catch {
+    alert("Cálculo inválido");
+  }
+}
+function fecharAviso() {
+  const aviso = document.getElementById("avisoSwipe");
+  if (aviso) aviso.remove();
+}

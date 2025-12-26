@@ -18,7 +18,7 @@
 
   <div class="topo">
     <div class="perfil">
-      <img id="fotoPerfil">
+      <img id="fotoPerfil" alt="Foto do perfil">
       <input type="file" id="uploadFoto" hidden>
       <h2>Olá, sutello 👋</h2>
     </div>
@@ -46,9 +46,42 @@
   <div class="rodape">
     <button onclick="adicionarConta()">➕ Nova conta</button>
     <button onclick="abrirHistorico()">📊 Histórico</button>
-    <button onclick="compartilhar()">📤 Compartilhar</button>
+    <button onclick="abrirCalculadora()">🧮 Calculadora</button>
   </div>
 
+</div>
+
+<!-- MODAL CALCULADORA -->
+<div id="modalCalc" class="modal" style="display:none">
+  <div class="modal-conteudo">
+    <h3>🧮 Calculadora</h3>
+    <input type="text" id="calcDisplay" readonly>
+
+    <div class="calc-grid">
+      <button onclick="calcAdd('7')">7</button>
+      <button onclick="calcAdd('8')">8</button>
+      <button onclick="calcAdd('9')">9</button>
+      <button onclick="calcAdd('/')">÷</button>
+
+      <button onclick="calcAdd('4')">4</button>
+      <button onclick="calcAdd('5')">5</button>
+      <button onclick="calcAdd('6')">6</button>
+      <button onclick="calcAdd('*')">×</button>
+
+      <button onclick="calcAdd('1')">1</button>
+      <button onclick="calcAdd('2')">2</button>
+      <button onclick="calcAdd('3')">3</button>
+      <button onclick="calcAdd('-')">−</button>
+
+      <button onclick="calcAdd('0')">0</button>
+      <button onclick="calcAdd('.')">.</button>
+      <button onclick="calcCalcular()">=</button>
+      <button onclick="calcAdd('+')">+</button>
+    </div>
+
+    <button onclick="calcLimpar()">🧹 Limpar</button>
+    <button onclick="fecharCalculadora()">❌ Fechar</button>
+  </div>
 </div>
 
 <script src="app.js"></script>
