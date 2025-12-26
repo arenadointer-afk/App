@@ -52,8 +52,11 @@ function desbloquear() {
     lock.style.display = "none";
     app.style.display = "block";
 
-    document.getElementById("avisoSwipe")?.remove();
-    document.querySelector(".barra")?.remove();
+    const aviso = document.getElementById("avisoSwipe");
+    if (aviso) aviso.remove();
+
+    const barra = document.querySelector(".barra");
+    if (barra) barra.remove();
 
     carregarPerfil();
     render();
@@ -95,7 +98,7 @@ function render() {
   const grupos = {};
 
   contas
-    .map((c, index) => ({ ...c, index })) // mantém índice real
+    .map((c, index) => ({ ...c, index }))
     .sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento))
     .forEach(c => {
       const k = mesAno(c.vencimento);
@@ -122,7 +125,10 @@ function render() {
     const bloco = document.createElement("div");
     bloco.innerHTML = `
       <h3>📅 ${k}</h3>
-      <button onclick="compartilharMes('${k}')">📤 Compartilhar mês</button>
+      <div class="acoes-mes">
+        <button onclick="compartilharMes('${k}')">📤</button>
+        <button class="btn-pdf" onclick="baixarPdfMes('${k}')">📄</button>
+      </div>
     `;
 
     visiveis.forEach(c => {
@@ -271,7 +277,10 @@ function abrirHistorico() {
   Object.keys(grupos).forEach(k => {
     lista.innerHTML += `
       <h3>📅 ${k}</h3>
-      <button onclick="compartilharMes('${k}')">📤 Compartilhar mês</button>
+      <div class="acoes-mes">
+        <button onclick="compartilharMes('${k}')">📤</button>
+        <button class="btn-pdf" onclick="baixarPdfMes('${k}')">📄</button>
+      </div>
     `;
     grupos[k].forEach(c => {
       lista.innerHTML += `
@@ -306,6 +315,64 @@ function compartilharMes(mes) {
   texto += `\n💰 Total: R$ ${total.toFixed(2)}\n✅ Pago: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${(total - pago).toFixed(2)}`;
   navigator.share ? navigator.share({ text: texto }) : alert(texto);
 }
+
+/* ================= PDF ================= */
+function baixarPdfMes(mes) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF();
+
+  let y = 15;
+  let total = 0, pago = 0;
+
+  pdf.setFontSize(16);
+  pdf.text("Controle de Contas", 105, y, { align: "center" });
+  y += 8;
+
+  pdf.setFontSize(12);
+  pdf.text(`Mês: ${mes}`, 105, y, { align: "center" });
+  y += 10;
+
+  pdf.setFontSize(10);
+  pdf.text("Conta", 10, y);
+  pdf.text("Valor", 110, y);
+  pdf.text("Venc.", 140, y);
+  pdf.text("Status", 170, y);
+  y += 5;
+
+  pdf.line(10, y, 200, y);
+  y += 5;
+
+  contas.forEach(c => {
+    if (mesAno(c.vencimento) !== mes) return;
+
+    total += c.valor;
+    if (c.paga) pago += c.valor;
+
+    pdf.text(c.nome.substring(0, 25), 10, y);
+    pdf.text(`R$ ${c.valor.toFixed(2)}`, 110, y);
+    pdf.text(isoParaBR(c.vencimento), 140, y);
+    pdf.text(c.paga ? "Pago" : "Pendente", 170, y);
+
+    y += 6;
+    if (y > 280) {
+      pdf.addPage();
+      y = 15;
+    }
+  });
+
+  y += 8;
+  pdf.line(10, y, 200, y);
+  y += 8;
+
+  pdf.text(`Total: R$ ${total.toFixed(2)}`, 10, y);
+  y += 6;
+  pdf.text(`Pago: R$ ${pago.toFixed(2)}`, 10, y);
+  y += 6;
+  pdf.text(`Falta: R$ ${(total - pago).toFixed(2)}`, 10, y);
+
+  pdf.save(`contas_${mes.replace("/", "-")}.pdf`);
+}
+
 /* ===== CALCULADORA ===== */
 let calcExpressao = "";
 
@@ -335,6 +402,7 @@ function calcCalcular() {
     alert("Cálculo inválido");
   }
 }
+
 function fecharAviso() {
   const aviso = document.getElementById("avisoSwipe");
   if (aviso) aviso.remove();
