@@ -29,6 +29,23 @@ const mesAno = d => {
   return `${m}/${a}`;
 };
 
+/* ======== INFO DE VENCIMENTO ======== */
+function infoVencimento(dataISO) {
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+
+  const venc = new Date(dataISO);
+  venc.setHours(0,0,0,0);
+
+  const diff = Math.floor((venc - hoje) / (1000 * 60 * 60 * 24));
+
+  if (diff < 0) return { texto: "VENCIDO", classe: "vencido" };
+  if (diff === 0) return { texto: "vence hoje", classe: "hoje" };
+  if (diff === 1) return { texto: "vence amanhã", classe: "amanha" };
+
+  return { texto: `conta vence em: ${diff} dias`, classe: "normal" };
+}
+
 /* ================= LOCK ================= */
 function desbloquear() {
   if (pin.value === PIN) {
@@ -77,11 +94,13 @@ function render() {
 
   const grupos = {};
 
-  contas.forEach((c,i) => {
-    const k = mesAno(c.vencimento);
-    if (!grupos[k]) grupos[k] = [];
-    grupos[k].push({ ...c, index: i });
-  });
+  [...contas]
+    .sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento))
+    .forEach((c,i) => {
+      const k = mesAno(c.vencimento);
+      if (!grupos[k]) grupos[k] = [];
+      grupos[k].push({ ...c, index: i });
+    });
 
   Object.keys(grupos).forEach(k => {
     const visiveis = grupos[k].filter(c => {
@@ -110,10 +129,17 @@ function render() {
     visiveis.forEach(c => {
       const div = document.createElement("div");
       div.className = "conta" + (c.paga ? " verde" : "");
+
+      const vencInfo = infoVencimento(c.vencimento);
+
       div.innerHTML = `
         <strong>${c.nome}</strong><br>
         💰 R$ ${c.valor.toFixed(2)}<br>
-        📅 ${isoParaBR(c.vencimento)}
+        📅 ${isoParaBR(c.vencimento)}<br>
+        <small class="vencimento ${vencInfo.classe}">
+          ${vencInfo.texto}
+        </small>
+
         <div class="acoes">
           ${!c.paga ? `<button onclick="marcarPaga(${c.index})">✅ Paga</button>` : ""}
           <button onclick="ocultarConta(${c.index})">👁 Ocultar</button>

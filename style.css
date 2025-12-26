@@ -144,3 +144,19 @@ body {
   justify-content: space-around;
   padding: 10px;
 }
+.vencimento {
+  font-size: 12px;
+  text-transform: lowercase;
+}
+
+.vencimento.hoje,
+.vencimento.amanha {
+  color: orange;
+  font-weight: bold;
+}
+
+.vencimento.vencido {
+  color: red;
+  font-weight: bold;
+  text-transform: uppercase;
+}
