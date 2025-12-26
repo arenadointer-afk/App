@@ -94,21 +94,20 @@ function render() {
 
   const grupos = {};
 
-  [...contas]
+  contas
+    .map((c, index) => ({ ...c, index })) // mantém índice real
     .sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento))
-    .forEach((c,i) => {
+    .forEach(c => {
       const k = mesAno(c.vencimento);
       if (!grupos[k]) grupos[k] = [];
-      grupos[k].push({ ...c, index: i });
+      grupos[k].push(c);
     });
 
   Object.keys(grupos).forEach(k => {
     const visiveis = grupos[k].filter(c => {
-
       if (filtro === "pagas") return c.paga;
       if (c.oculta) return false;
       if (filtro === "pendentes" && c.paga) return false;
-
       return true;
     });
 
