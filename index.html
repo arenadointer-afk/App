@@ -2,37 +2,34 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Controle de Contas</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minhas Contas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div id="lock" class="lock">
-  <h2>🔐 Desbloquear</h2>
-  <input type="password" id="pin" placeholder="Digite seu PIN">
-  <button onclick="desbloquear()">Entrar</button>
+  <div style="background:white; padding:20px; border-radius:15px; text-align:center; width: 80%;">
+    <h2 style="color:#333; margin-top:0;">🔐 Acesso</h2>
+    <input type="password" id="pin" inputmode="numeric" placeholder="PIN" style="border:1px solid #ccc; font-size:16px; width:100%; box-sizing:border-box; padding:10px;">
+    <br>
+    <button onclick="desbloquear()" style="background:#7b2ff7; color:white; width:100%; margin:10px 0 0 0; cursor:pointer;">Entrar</button>
+  </div>
 </div>
 
 <div id="app" style="display:none">
 
   <div class="topo">
     <div class="perfil">
-      <img id="fotoPerfil" alt="Foto do perfil">
-      <input type="file" id="uploadFoto" hidden>
-      <h2>Olá, sutello 👋</h2>
+      <img id="fotoPerfil" src="https://via.placeholder.com/50" alt="Foto">
+      <input type="file" id="uploadFoto" hidden accept="image/*">
+      <h2 style="margin:0; font-size:18px;">Minhas Contas</h2>
     </div>
 
     <div id="avisoSwipe" class="aviso">
-      💡 👉 Ocultar | 👈 Marcar como paga
-      <span onclick="fecharAviso()">✖</span>
+      <span>💡 Deslize p/ arquivar ou pagar</span>
+      <span onclick="fecharAviso()" style="font-weight:bold;">✕</span>
     </div>
-
-    <div class="barra">
-      <div id="barraProgresso"></div>
-    </div>
-
-    <div id="resumo" class="resumo"></div>
   </div>
 
   <div class="filtros">
@@ -44,49 +41,29 @@
   <div id="lista" class="lista"></div>
 
   <div class="rodape">
-    <button onclick="adicionarConta()">➕ Nova conta</button>
+    <button onclick="adicionarConta()">➕ Nova</button>
     <button onclick="abrirHistorico()">📊 Histórico</button>
-    <button onclick="abrirCalculadora()">🧮 Calculadora</button>
+    <button onclick="abrirCalculadora()">🧮 Calc</button>
   </div>
 
 </div>
 
-<!-- MODAL CALCULADORA -->
 <div id="modalCalc" class="modal" style="display:none">
   <div class="modal-conteudo">
     <h3>🧮 Calculadora</h3>
     <input type="text" id="calcDisplay" readonly>
-
     <div class="calc-grid">
-      <button onclick="calcAdd('7')">7</button>
-      <button onclick="calcAdd('8')">8</button>
-      <button onclick="calcAdd('9')">9</button>
-      <button onclick="calcAdd('/')">÷</button>
-
-      <button onclick="calcAdd('4')">4</button>
-      <button onclick="calcAdd('5')">5</button>
-      <button onclick="calcAdd('6')">6</button>
-      <button onclick="calcAdd('*')">×</button>
-
-      <button onclick="calcAdd('1')">1</button>
-      <button onclick="calcAdd('2')">2</button>
-      <button onclick="calcAdd('3')">3</button>
-      <button onclick="calcAdd('-')">−</button>
-
-      <button onclick="calcAdd('0')">0</button>
-      <button onclick="calcAdd('.')">.</button>
-      <button onclick="calcCalcular()">=</button>
-      <button onclick="calcAdd('+')">+</button>
+      <button onclick="calcAdd('7')">7</button><button onclick="calcAdd('8')">8</button><button onclick="calcAdd('9')">9</button><button onclick="calcAdd('/')">÷</button>
+      <button onclick="calcAdd('4')">4</button><button onclick="calcAdd('5')">5</button><button onclick="calcAdd('6')">6</button><button onclick="calcAdd('*')">×</button>
+      <button onclick="calcAdd('1')">1</button><button onclick="calcAdd('2')">2</button><button onclick="calcAdd('3')">3</button><button onclick="calcAdd('-')">−</button>
+      <button onclick="calcAdd('0')">0</button><button onclick="calcAdd('.')">.</button><button onclick="calcCalcular()">=</button><button onclick="calcAdd('+')">+</button>
     </div>
-
     <button onclick="calcLimpar()">🧹 Limpar</button>
     <button onclick="fecharCalculadora()">❌ Fechar</button>
   </div>
 </div>
 
-<!-- ✅ PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
 <script src="app.js"></script>
 </body>
 </html>
