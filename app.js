@@ -5,8 +5,8 @@ let filtro = "todas";
 /* ================= UTIL ================= */
 function salvar() {
   localStorage.setItem("contas", JSON.stringify(contas));
-  // Se estivermos na tela de histórico, re-renderiza o histórico, senão a home
   const lista = document.getElementById("lista");
+  // Mantém a visualização atual (Home ou Histórico)
   if (lista && lista.getAttribute("data-mode") === "historico") {
     abrirHistorico();
   } else {
@@ -50,9 +50,9 @@ function infoVencimento(dataISO) {
   return { texto: `vence em: ${diff} dias`, classe: "normal" };
 }
 
-/* ================= LOCK ================= */
+/* ================= LOCK & SYSTEM ================= */
 document.addEventListener("DOMContentLoaded", () => {
-   // desbloquear(); // Descomente para testes rápidos
+   // desbloquear(); // Descomente para testes
 });
 
 function desbloquear() {
@@ -68,7 +68,6 @@ function desbloquear() {
   render();
 }
 
-/* ================= PERFIL ================= */
 function carregarPerfil() {
   const f = localStorage.getItem("fotoPerfil");
   const img = document.getElementById("fotoPerfil");
@@ -85,7 +84,6 @@ if(imgPerfil && inputUpload) {
     };
 }
 
-/* ================= FILTRO ================= */
 function setFiltro(f, btn) {
   filtro = f;
   document.querySelectorAll(".filtros button").forEach(b => b.classList.remove("ativo"));
@@ -93,12 +91,11 @@ function setFiltro(f, btn) {
   render();
 }
 
-/* ================= RENDER (HOME) ================= */
+/* ================= RENDER HOME ================= */
 function render() {
   const lista = document.getElementById("lista");
   if(!lista) return;
   
-  // Reseta atributo para saber que estamos na home
   lista.setAttribute("data-mode", "home"); 
   lista.innerHTML = "";
 
@@ -168,6 +165,12 @@ function render() {
            htmlParcelas = `<div class="info-parcelas"><div>🔄 Recorrente</div></div>`;
       }
 
+      // Lógica do botão PIX
+      let btnPix = "";
+      if(c.codigoPix && c.codigoPix.length > 5) {
+         btnPix = `<button onclick="copiarPix(${c.index})" style="background:#4caf50; color:white;">📋 Copiar Pix</button>`;
+      }
+
       div.className = classes;
       div.innerHTML = `
         ${badgeHtml}
@@ -178,6 +181,7 @@ function render() {
         ${htmlParcelas}
         <div class="acoes">
           ${!c.paga ? `<button onclick="marcarPaga(${c.index})">✅ Pagar</button>` : ""}
+          ${btnPix}
           <button onclick="ocultarConta(${c.index})">👁 Arquivar</button>
           <button onclick="editarConta(${c.index})">✏️</button>
           <button onclick="deletarConta(${c.index})">🗑️</button>
@@ -196,14 +200,11 @@ function render() {
   });
 }
 
-/* ================= HISTÓRICO (ATUALIZADO) ================= */
+/* ================= HISTÓRICO ================= */
 function abrirHistorico() {
   const lista = document.getElementById("lista");
-  
-  // Marca para o botão salvar saber que estamos aqui
   lista.setAttribute("data-mode", "historico");
 
-  // Botão Voltar
   lista.innerHTML = `
     <div style="padding: 10px;">
         <button style="width:100%; padding:12px; background:#333; color:white; border:none; border-radius:8px; font-weight:bold; font-size:14px;" onclick="render()">
@@ -214,9 +215,6 @@ function abrirHistorico() {
   `;
 
   const grupos = {};
-  
-  // Filtra apenas as contas OCULTAS (Arquivadas ou Pagas que saíram da home)
-  // Ordena decrescente (mais recente primeiro)
   const historico = contas
     .map((c, index) => ({...c, index}))
     .filter(c => c.oculta) 
@@ -233,35 +231,26 @@ function abrirHistorico() {
     grupos[k].push(c);
   });
 
-  // Renderiza cada bloco de histórico
   Object.keys(grupos).forEach(k => {
     let totalPagoNoMes = 0;
-    
-    // Calcula o total pago neste mês histórico
-    grupos[k].forEach(c => {
-        if(c.paga) totalPagoNoMes += c.valor;
-    });
+    grupos[k].forEach(c => { if(c.paga) totalPagoNoMes += c.valor; });
 
-    // Container Principal do Mês Histórico
     const container = document.createElement("div");
     container.className = "historico-container";
 
-    // 1. Cabeçalho (Mês + Botões PDF/Share)
     let html = `
       <div class="historico-cabecalho">
         <h3>📅 ${k}</h3>
         <div class="botoes-historico">
-            <button onclick="compartilharMes('${k}')" title="Compartilhar">📤</button>
-            <button onclick="baixarPdfMes('${k}')" title="PDF">📄</button>
+            <button onclick="compartilharMes('${k}')">📤</button>
+            <button onclick="baixarPdfMes('${k}')">📄</button>
         </div>
       </div>
       <div class="historico-lista">
     `;
 
-    // 2. Lista de Contas
     grupos[k].forEach(c => {
         const dataPagamentoFmt = c.dataPagamento ? isoParaBR(c.dataPagamento) : "Arquivada";
-        
         html += `
           <div class="conta-historico">
             <div class="dados-historico">
@@ -278,10 +267,7 @@ function abrirHistorico() {
         `;
     });
 
-    html += `</div>`; // Fecha lista
-
-    // 3. Resumo Final do Mês
-    html += `
+    html += `</div>
       <div class="historico-resumo">
          <span>Total Pago em ${k}</span>
          <strong>R$ ${totalPagoNoMes.toFixed(2)}</strong>
@@ -293,7 +279,7 @@ function abrirHistorico() {
   });
 }
 
-/* ================= AÇÕES (MANTER IGUAL) ================= */
+/* ================= AÇÕES & CRUD ================= */
 function marcarPaga(i) {
   const c = contas[i];
   c.paga = true;
@@ -314,22 +300,16 @@ function marcarPaga(i) {
     if (gerar) {
       contas.push({
         ...c,
-        paga: false,
-        oculta: false,
-        dataPagamento: null,
+        paga: false, oculta: false, dataPagamento: null,
         vencimento: proximoMes(c.vencimento),
-        parcelaAtual: novaParcela,
-        totalParcelas: totalP,
+        parcelaAtual: novaParcela, totalParcelas: totalP,
       });
     }
   }
   salvar();
 }
 
-function ocultarConta(i) {
-  contas[i].oculta = true;
-  salvar();
-}
+function ocultarConta(i) { contas[i].oculta = true; salvar(); }
 
 function adicionarConta() {
   const nome = prompt("Nome da conta:");
@@ -340,17 +320,21 @@ function adicionarConta() {
   const data = prompt("Vencimento (DD/MM/AAAA):");
   if (!data) return;
 
+  // NOVO: Campo de PIX
+  const codigoPix = prompt("Cole o código PIX / Barras (Opcional):");
+
   let recorrente = confirm("Recorrente/Parcelada?");
   let repeticoes = null, totalParcelas = 0;
 
   if (recorrente) {
-    const r = prompt("Parcelas? (Nº ou deixe vazio p/ infinito)");
+    const r = prompt("Parcelas? (Nº ou vazio p/ infinito)");
     const n = Number(r);
     if (n > 0) { repeticoes = n; totalParcelas = n; }
   }
 
   contas.push({
     nome, valor, vencimento: brParaISO(data),
+    codigoPix: codigoPix || "", // Salva o código
     paga: false, recorrente, repeticoes,
     totalParcelas: totalParcelas > 0 ? totalParcelas : null,
     parcelaAtual: recorrente ? 1 : null,
@@ -365,37 +349,81 @@ function editarConta(i) {
   const valorStr = prompt("Valor:", c.valor);
   const valor = parseFloat(String(valorStr).replace(",", "."));
   const data = prompt("Vencimento (DD/MM/AAAA):", isoParaBR(c.vencimento));
+  // Edição do PIX
+  const pix = prompt("Código PIX:", c.codigoPix || "");
+
   if (!nome || isNaN(valor) || !data) return;
   c.nome = nome; c.valor = valor; c.vencimento = brParaISO(data);
+  c.codigoPix = pix;
   salvar();
 }
 
 function deletarConta(i) {
-  if (confirm("Apagar permanentemente?")) {
-    contas.splice(i,1);
-    salvar();
-  }
+  if (confirm("Apagar permanentemente?")) { contas.splice(i,1); salvar(); }
+}
+
+function copiarPix(i) {
+    const codigo = contas[i].codigoPix;
+    if(!codigo) return;
+    navigator.clipboard.writeText(codigo).then(() => {
+        alert("Código copiado! ✅");
+    });
+}
+
+/* ================= BACKUP & RESTORE ================= */
+function abrirOpcoes() { document.getElementById("modalOpcoes").style.display = "flex"; }
+function fecharOpcoes() { document.getElementById("modalOpcoes").style.display = "none"; }
+
+function baixarBackup() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(contas));
+    const node = document.createElement('a');
+    node.setAttribute("href", dataStr);
+    node.setAttribute("download", `backup_contas_${new Date().toISOString().slice(0,10)}.json`);
+    document.body.appendChild(node);
+    node.click();
+    node.remove();
+}
+
+function lerArquivoBackup(input) {
+    const file = input.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const dados = JSON.parse(e.target.result);
+            if(Array.isArray(dados)) {
+                if(confirm("Isso substituirá todas as contas atuais pelo backup. Continuar?")) {
+                    contas = dados;
+                    salvar();
+                    alert("Backup restaurado com sucesso! 🔄");
+                    location.reload();
+                }
+            } else { alert("Arquivo inválido."); }
+        } catch(err) { alert("Erro ao ler arquivo."); }
+    };
+    reader.readAsText(file);
 }
 
 /* ================= EXPORTAR ================= */
 function compartilharMes(mes) {
-  let texto = `📜 *Histórico ${mes}*\n\n`;
-  let total = 0;
+  let texto = `📅 *Resumo de Contas - ${mes}*\n\n`;
+  let total = 0, pago = 0;
   
-  // Inclui ocultas também, pois pode estar sendo chamado do histórico
-  contas.forEach(c => {
-    if (mesAno(c.vencimento) !== mes) return;
-    if (c.oculta && !c.paga) return; // Se está oculta mas não foi paga, é lixo, ignora
-    
-    // Se estamos no histórico, queremos ver tudo que foi pago/arquivado daquele mês
-    // Se estamos na home, queremos ver o que está ativo.
-    // A lógica unificada: lista tudo que pertence ao mês e foi pago OU está visível
-    
+  const contasDoMes = contas
+    .filter(c => mesAno(c.vencimento) === mes)
+    .sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
+
+  if (contasDoMes.length === 0) { alert("Nada para compartilhar."); return; }
+
+  contasDoMes.forEach(c => {
     total += c.valor;
-    texto += `${c.nome}: R$ ${c.valor.toFixed(2)} (${c.paga ? "Pago" : "Pendente"})\n`;
+    if (c.paga) pago += c.valor;
+    const check = c.paga ? "✅" : "⭕"; 
+    texto += `${check} ${c.nome}: R$ ${c.valor.toFixed(2)}\n`;
   });
   
-  texto += `\n💰 Total: R$ ${total.toFixed(2)}`;
+  const faltante = total - pago;
+  texto += `\n--------------------\n💰 *Total:* R$ ${total.toFixed(2)}\n✅ *Pago:* R$ ${pago.toFixed(2)}\n⏳ *Falta:* R$ ${faltante.toFixed(2)}`;
   
   if (navigator.share) navigator.share({ title: `Contas ${mes}`, text: texto }).catch(console.error);
   else {
@@ -409,30 +437,22 @@ function baixarPdfMes(mes) {
   if(!window.jspdf) { alert("Carregando PDF..."); return; }
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF();
-  
   let y = 20;
   pdf.setFontSize(16); pdf.text(`Relatório: ${mes}`, 105, y, {align:'center'}); y += 15;
-  
   let total = 0;
   pdf.setFontSize(10);
   pdf.text("Conta", 10, y); pdf.text("Valor", 80, y); pdf.text("Vencimento", 120, y); pdf.text("Status", 160, y);
   y += 5; pdf.line(10, y, 200, y); y += 8;
-
   contas.forEach(c => {
       if(mesAno(c.vencimento) !== mes) return;
       if(c.oculta && !c.paga) return; 
-      
       total += c.valor;
-      pdf.text(`${c.nome}`, 10, y);
-      pdf.text(`R$ ${c.valor.toFixed(2)}`, 80, y);
-      pdf.text(`${isoParaBR(c.vencimento)}`, 120, y);
-      pdf.text(c.paga ? "PAGO" : "ABERTO", 160, y);
+      pdf.text(`${c.nome}`, 10, y); pdf.text(`R$ ${c.valor.toFixed(2)}`, 80, y);
+      pdf.text(`${isoParaBR(c.vencimento)}`, 120, y); pdf.text(c.paga ? "PAGO" : "ABERTO", 160, y);
       y += 8;
   });
-  
   y += 5; pdf.line(10, y, 200, y); y += 10;
   pdf.setFontSize(12); pdf.text(`Total Mês: R$ ${total.toFixed(2)}`, 10, y);
-  
   pdf.save(`extrato_${mes.replace('/','-')}.pdf`);
 }
 
@@ -443,9 +463,7 @@ function fecharCalculadora() { document.getElementById("modalCalc").style.displa
 function calcAdd(v) { calcExpressao += v; document.getElementById("calcDisplay").value = calcExpressao; }
 function calcLimpar() { calcExpressao = ""; document.getElementById("calcDisplay").value = ""; }
 function calcCalcular() { 
-    try { 
-        document.getElementById("calcDisplay").value = Function('"use strict";return (' + calcExpressao + ')')(); 
-        calcExpressao = document.getElementById("calcDisplay").value;
-    } catch { alert("Erro"); calcLimpar(); } 
+    try { document.getElementById("calcDisplay").value = Function('"use strict";return (' + calcExpressao + ')')(); 
+        calcExpressao = document.getElementById("calcDisplay").value; } catch { alert("Erro"); calcLimpar(); } 
 }
 function fecharAviso() { document.getElementById("avisoSwipe")?.remove(); }

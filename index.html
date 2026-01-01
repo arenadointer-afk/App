@@ -9,11 +9,11 @@
 <body>
 
 <div id="lock" class="lock">
-  <div style="background:white; padding:20px; border-radius:15px; text-align:center; width: 80%;">
+  <div style="background:white; padding:20px; border-radius:15px; text-align:center; width: 80%; max-width:300px;">
     <h2 style="color:#333; margin-top:0;">🔐 Acesso</h2>
-    <input type="password" id="pin" inputmode="numeric" placeholder="PIN" style="border:1px solid #ccc; font-size:16px; width:100%; box-sizing:border-box; padding:10px;">
+    <input type="password" id="pin" inputmode="numeric" placeholder="PIN" style="border:1px solid #ccc; font-size:16px; width:100%; box-sizing:border-box; padding:10px; text-align:center;">
     <br>
-    <button onclick="desbloquear()" style="background:#7b2ff7; color:white; width:100%; margin:10px 0 0 0; cursor:pointer;">Entrar</button>
+    <button onclick="desbloquear()" style="background:#7b2ff7; color:white; width:100%; margin:15px 0 0 0; cursor:pointer; padding:10px; border-radius:8px; border:none; font-weight:bold;">Entrar</button>
   </div>
 </div>
 
@@ -44,6 +44,7 @@
     <button onclick="adicionarConta()">➕ Nova</button>
     <button onclick="abrirHistorico()">📊 Histórico</button>
     <button onclick="abrirCalculadora()">🧮 Calc</button>
+    <button onclick="abrirOpcoes()">⚙️ Opções</button>
   </div>
 
 </div>
@@ -58,8 +59,24 @@
       <button onclick="calcAdd('1')">1</button><button onclick="calcAdd('2')">2</button><button onclick="calcAdd('3')">3</button><button onclick="calcAdd('-')">−</button>
       <button onclick="calcAdd('0')">0</button><button onclick="calcAdd('.')">.</button><button onclick="calcCalcular()">=</button><button onclick="calcAdd('+')">+</button>
     </div>
-    <button onclick="calcLimpar()">🧹 Limpar</button>
-    <button onclick="fecharCalculadora()">❌ Fechar</button>
+    <button onclick="calcLimpar()" style="background:#ef5350; color:white;">🧹 Limpar</button>
+    <button onclick="fecharCalculadora()" style="background:#9e9e9e; color:white;">❌ Fechar</button>
+  </div>
+</div>
+
+<div id="modalOpcoes" class="modal" style="display:none">
+  <div class="modal-conteudo">
+    <h3>⚙️ Configurações</h3>
+    <p style="font-size:13px; color:#666; text-align:center;">Salve seus dados ou restaure de um arquivo antigo.</p>
+    
+    <button onclick="baixarBackup()" style="background:#7b2ff7; color:white; margin-bottom:10px;">💾 Salvar Backup (Baixar)</button>
+    
+    <button onclick="document.getElementById('inputRestore').click()" style="background:#333; color:white;">📂 Restaurar Backup</button>
+    <input type="file" id="inputRestore" hidden onchange="lerArquivoBackup(this)" accept=".json">
+    
+    <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
+    
+    <button onclick="fecharOpcoes()" style="background:#9e9e9e; color:white;">❌ Fechar</button>
   </div>
 </div>
 
