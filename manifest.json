@@ -1,22 +1,22 @@
 {
-  "name": "Caixinha",
-  "short_name": "Caixinha",
-  "description": "App de caixinha para juntar dinheiro",
-  "start_url": "/Caixinha/",
-  "scope": "/Caixinha/",
+  "name": "Meus Gastos",
+  "short_name": "Gastos",
+  "description": "Controle de contas e vencimentos",
+  "start_url": "/App/",
+  "scope": "/App/",
   "display": "standalone",
-  "background_color": "#4b0082",
-  "theme_color": "#4b0082",
+  "background_color": "#0f0f14",
+  "theme_color": "#7b2ff7",
   "orientation": "portrait",
   "lang": "pt-BR",
   "icons": [
     {
-      "src": "/Caixinha/icon-192.png",
+      "src": "/App/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/Caixinha/icon-512.png",
+      "src": "/App/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
