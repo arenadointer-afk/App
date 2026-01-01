@@ -121,14 +121,18 @@ function render() {
 
     if (visiveis.length === 0) return; 
 
+    // === INICIO DA ALTERAÇÃO ===
     let totalMes = 0, pagoMes = 0;
+    
+    // Agora percorre TODAS as contas do mês para somar, não apenas as visíveis
     contasDoMes.forEach(c => {
-        if(!c.oculta) {
-             totalMes += c.valor;
-             if(c.paga) pagoMes += c.valor;
-        }
+         totalMes += c.valor;        // Soma tudo ao total
+         if(c.paga) pagoMes += c.valor; // Se paga, soma ao pago
     });
+    
+    // A falta é a diferença matemática simples
     const faltaMes = totalMes - pagoMes;
+    // === FIM DA ALTERAÇÃO ===
 
     const bloco = document.createElement("div");
     bloco.className = "mes-container";
