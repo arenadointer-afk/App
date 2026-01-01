@@ -2,7 +2,7 @@
   "name": "Meus Gastos",
   "short_name": "Gastos",
   "description": "Controle de contas e vencimentos - Olá, Sutello",
-  "start_url": "index.html",
+"start_url": "./"
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#820ad1",
