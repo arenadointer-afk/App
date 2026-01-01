@@ -1,13 +1,13 @@
-const CACHE_NAME = "meus-gastos-v1";
+const CACHE_NAME = "meus-gastos-v2";
 
 const FILES_TO_CACHE = [
-  "./",
-  "./index.html",
-  "./style.css",
-  "./app.js",
-  "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png"
+  "/App/",
+  "/App/index.html",
+  "/App/style.css",
+  "/App/app.js",
+  "/App/manifest.json",
+  "/App/icon-192.png",
+  "/App/icon-512.png"
 ];
 
 // Instala e salva cache
