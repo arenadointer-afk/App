@@ -2,6 +2,25 @@ const PIN = "2007";
 let contas = JSON.parse(localStorage.getItem("contas")) || [];
 let filtro = "todas"; 
 
+/* ================= SEGURANÇA EXTRA (MATEMÁTICA) ================= */
+function confirmarSeguranca(acao) {
+  // Gera dois números aleatórios entre 1 e 9
+  const n1 = Math.floor(Math.random() * 9) + 1;
+  const n2 = Math.floor(Math.random() * 9) + 1;
+  const soma = n1 + n2;
+  
+  // Pede a resposta ao usuário
+  const resposta = prompt(`🔒 Segurança para ${acao}:\nQuanto é ${n1} + ${n2}?`);
+  
+  // Verifica se a resposta está correta
+  if (resposta && parseInt(resposta) === soma) {
+    return true;
+  } else {
+    alert("🚫 Resposta incorreta ou cancelada. Ação abortada.");
+    return false;
+  }
+}
+
 /* ================= UTIL ================= */
 function salvar() {
   localStorage.setItem("contas", JSON.stringify(contas));
@@ -52,16 +71,21 @@ function infoVencimento(dataISO) {
 
 /* ================= LOCK & SYSTEM ================= */
 document.addEventListener("DOMContentLoaded", () => {
-   // desbloquear(); // Descomente para testes
+   // Se quiser pular a tela de bloqueio para testes, descomente a linha abaixo:
+   // desbloquear(); 
 });
 
 function desbloquear() {
   const pinInput = document.getElementById("pin");
-  if (pinInput && pinInput.value !== PIN && pinInput.value !== "") {
-     alert("PIN incorreto");
+  
+  // Se o campo de PIN existir e o valor for diferente do PIN correto
+  if (pinInput && pinInput.value !== PIN) {
+     alert("PIN incorreto. Tente: 2007");
      pinInput.value = "";
      return;
   }
+  
+  // Se estiver tudo certo, libera o app
   document.getElementById("lock").style.display = "none";
   document.getElementById("app").style.display = "block";
   carregarPerfil();
@@ -73,6 +97,8 @@ function carregarPerfil() {
   const img = document.getElementById("fotoPerfil");
   if (f && img) img.src = f;
 }
+
+// Configuração de Upload de Foto
 const imgPerfil = document.getElementById("fotoPerfil");
 const inputUpload = document.getElementById("uploadFoto");
 if(imgPerfil && inputUpload) {
@@ -121,18 +147,13 @@ function render() {
 
     if (visiveis.length === 0) return; 
 
-    // === INICIO DA ALTERAÇÃO ===
+    // Cálculos de totais
     let totalMes = 0, pagoMes = 0;
-    
-    // Agora percorre TODAS as contas do mês para somar, não apenas as visíveis
     contasDoMes.forEach(c => {
-         totalMes += c.valor;        // Soma tudo ao total
-         if(c.paga) pagoMes += c.valor; // Se paga, soma ao pago
+         totalMes += c.valor;        
+         if(c.paga) pagoMes += c.valor; 
     });
-    
-    // A falta é a diferença matemática simples
     const faltaMes = totalMes - pagoMes;
-    // === FIM DA ALTERAÇÃO ===
 
     const bloco = document.createElement("div");
     bloco.className = "mes-container";
@@ -169,7 +190,6 @@ function render() {
            htmlParcelas = `<div class="info-parcelas"><div>🔄 Recorrente</div></div>`;
       }
 
-      // Lógica do botão PIX
       let btnPix = "";
       if(c.codigoPix && c.codigoPix.length > 5) {
          btnPix = `<button onclick="copiarPix(${c.index})" style="background:#4caf50; color:white;">📋 Copiar Pix</button>`;
@@ -285,6 +305,9 @@ function abrirHistorico() {
 
 /* ================= AÇÕES & CRUD ================= */
 function marcarPaga(i) {
+  // === SEGURANÇA APLICADA ===
+  if (!confirmarSeguranca("PAGAR CONTA")) return;
+
   const c = contas[i];
   c.paga = true;
   c.oculta = true; 
@@ -324,7 +347,6 @@ function adicionarConta() {
   const data = prompt("Vencimento (DD/MM/AAAA):");
   if (!data) return;
 
-  // NOVO: Campo de PIX
   const codigoPix = prompt("Cole o código PIX / Barras (Opcional):");
 
   let recorrente = confirm("Recorrente/Parcelada?");
@@ -338,7 +360,7 @@ function adicionarConta() {
 
   contas.push({
     nome, valor, vencimento: brParaISO(data),
-    codigoPix: codigoPix || "", // Salva o código
+    codigoPix: codigoPix || "", 
     paga: false, recorrente, repeticoes,
     totalParcelas: totalParcelas > 0 ? totalParcelas : null,
     parcelaAtual: recorrente ? 1 : null,
@@ -353,7 +375,6 @@ function editarConta(i) {
   const valorStr = prompt("Valor:", c.valor);
   const valor = parseFloat(String(valorStr).replace(",", "."));
   const data = prompt("Vencimento (DD/MM/AAAA):", isoParaBR(c.vencimento));
-  // Edição do PIX
   const pix = prompt("Código PIX:", c.codigoPix || "");
 
   if (!nome || isNaN(valor) || !data) return;
@@ -363,7 +384,11 @@ function editarConta(i) {
 }
 
 function deletarConta(i) {
-  if (confirm("Apagar permanentemente?")) { contas.splice(i,1); salvar(); }
+  // === SEGURANÇA APLICADA ===
+  if (confirmarSeguranca("EXCLUIR PERMANENTEMENTE")) { 
+    contas.splice(i,1); 
+    salvar(); 
+  }
 }
 
 function copiarPix(i) {
@@ -464,10 +489,30 @@ function baixarPdfMes(mes) {
 let calcExpressao = "";
 function abrirCalculadora() { document.getElementById("modalCalc").style.display = "flex"; }
 function fecharCalculadora() { document.getElementById("modalCalc").style.display = "none"; }
-function calcAdd(v) { calcExpressao += v; document.getElementById("calcDisplay").value = calcExpressao; }
-function calcLimpar() { calcExpressao = ""; document.getElementById("calcDisplay").value = ""; }
-function calcCalcular() { 
-    try { document.getElementById("calcDisplay").value = Function('"use strict";return (' + calcExpressao + ')')(); 
-        calcExpressao = document.getElementById("calcDisplay").value; } catch { alert("Erro"); calcLimpar(); } 
+
+function calcAdd(v) { 
+  calcExpressao += v; 
+  document.getElementById("calcDisplay").value = calcExpressao; 
 }
-function fecharAviso() { document.getElementById("avisoSwipe")?.remove(); }
+
+function calcLimpar() { 
+  calcExpressao = ""; 
+  document.getElementById("calcDisplay").value = ""; 
+}
+
+function calcCalcular() { 
+    try { 
+        // Cria uma função segura para avaliar a expressão
+        const result = Function('"use strict";return (' + calcExpressao + ')')(); 
+        document.getElementById("calcDisplay").value = result;
+        calcExpressao = String(result);
+    } catch { 
+        alert("Erro na conta"); 
+        calcLimpar(); 
+    } 
+}
+
+function fecharAviso() { 
+  const aviso = document.getElementById("avisoSwipe");
+  if(aviso) aviso.remove(); 
+}
