@@ -31,12 +31,15 @@ function getIcone(nome) {
   return "📄"; // Padrão
 }
 
-// 2. Alternar Privacidade
+// 2. Alternar Privacidade (Com Persistência)
 function togglePrivacidade() {
     document.body.classList.toggle("modo-privado");
+    const isPrivado = document.body.classList.contains("modo-privado");
+    localStorage.setItem("modoPrivado", isPrivado); // Salva preferência
+    
     const btn = document.getElementById("btnPrivacidade");
     if(btn) {
-        btn.innerHTML = document.body.classList.contains("modo-privado") ? "🙈" : "👁️";
+        btn.innerHTML = isPrivado ? "🙈" : "👁️";
     }
 }
 
@@ -58,71 +61,43 @@ function confirmarSeguranca(acao) {
   return false;
 }
 
-/* ================= SALVAMENTO ================= */
+/* ================= SALVAMENTO & SISTEMA ================= */
 function salvar() {
   try {
     localStorage.setItem("contas", JSON.stringify(contas));
-    const lista = document.getElementById("lista");
-    if (lista && lista.getAttribute("data-mode") === "historico") {
-      abrirHistorico();
-    } else {
-      render();
-    }
+    render();
   } catch (e) {
     alert("Erro ao salvar! Memória cheia?");
     console.error(e);
   }
 }
 
-/* ================= DATAS ================= */
-const isoParaBR = d => {
-  if(!d) return "--/--/----";
-  const [a,m,di] = d.split("-");
-  return `${di}/${m}/${a}`;
-};
-
-const brParaISO = d => {
-  if(!d) return "";
-  const [di,m,a] = d.split("/");
-  return `${a}-${m}-${di}`;
-};
-
-const proximoMes = d => {
-  const data = new Date(d);
-  data.setMonth(data.getMonth() + 1);
-  return data.toISOString().split("T")[0];
-};
-
-const mesAno = d => {
-  const [a,m] = d.split("-");
-  return `${m}/${a}`;
-};
+const isoParaBR = d => { if(!d) return "--/--/----"; const [a,m,di] = d.split("-"); return `${di}/${m}/${a}`; };
+const brParaISO = d => { if(!d) return ""; const [di,m,a] = d.split("/"); return `${a}-${m}-${di}`; };
+const proximoMes = d => { const data = new Date(d); data.setMonth(data.getMonth() + 1); return data.toISOString().split("T")[0]; };
+const mesAno = d => { const [a,m] = d.split("-"); return `${m}/${a}`; };
 
 function infoVencimento(dataISO) {
-  const hoje = new Date();
-  hoje.setHours(0,0,0,0);
-  const venc = new Date(dataISO);
-  venc.setHours(0,0,0,0);
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const venc = new Date(dataISO); venc.setHours(0,0,0,0);
   const diff = Math.floor((venc - hoje) / (1000 * 60 * 60 * 24));
-
   if (diff < 0) return { texto: "VENCIDO", classe: "vencido" };
   if (diff === 0) return { texto: "vence hoje", classe: "hoje" };
   if (diff === 1) return { texto: "vence amanhã", classe: "amanha" };
   return { texto: `vence em: ${diff} dias`, classe: "normal" };
 }
 
-/* ================= SISTEMA ================= */
 document.addEventListener("DOMContentLoaded", () => {
+    // Restaura Modo Privacidade
+   if(localStorage.getItem("modoPrivado") === "true") {
+       document.body.classList.add("modo-privado");
+   }
    // desbloquear(); 
 });
 
 function desbloquear() {
   const pinInput = document.getElementById("pin");
-  if (pinInput && pinInput.value !== PIN) {
-     alert("PIN incorreto.");
-     pinInput.value = "";
-     return;
-  }
+  if (pinInput && pinInput.value !== PIN) { alert("PIN incorreto."); pinInput.value = ""; return; }
   document.getElementById("lock").style.display = "none";
   document.getElementById("app").style.display = "block";
   carregarPerfil();
@@ -134,7 +109,6 @@ function carregarPerfil() {
   const img = document.getElementById("fotoPerfil");
   if (f && img) img.src = f;
 }
-
 const imgPerfil = document.getElementById("fotoPerfil");
 const inputUpload = document.getElementById("uploadFoto");
 if(imgPerfil && inputUpload) {
@@ -153,25 +127,27 @@ function setFiltro(f, btn) {
   render();
 }
 
-/* ================= RENDERIZAÇÃO ================= */
+/* ================= RENDERIZAÇÃO PRINCIPAL ================= */
 function render() {
   const lista = document.getElementById("lista");
   if(!lista) return;
   
-  lista.setAttribute("data-mode", "home"); 
   lista.innerHTML = "";
 
-  // Injeção da Barra de Busca e Botão Privacidade
+  // 1. Barra de Busca e Botão Privacidade
   if(!document.getElementById("btnPrivacidade")) {
       const divFiltros = document.querySelector(".filtros");
       if(divFiltros && !divFiltros.previousElementSibling.classList.contains("busca-container")) {
           const divBusca = document.createElement("div");
           divBusca.className = "busca-container";
           divBusca.style.cssText = "display:flex; gap:10px; padding:0 15px; margin-top:10px;";
+          
+          const iconeOlho = document.body.classList.contains("modo-privado") ? "🙈" : "👁️";
+          
           divBusca.innerHTML = `
-            <input type="text" id="inputBusca" placeholder="🔍 Buscar..." onkeyup="render()" 
+            <input type="text" id="inputBusca" placeholder="🔍 Buscar (ex: Internet)..." onkeyup="render()" 
             style="flex:1; padding: 10px; border-radius: 20px; border: 1px solid #444; background: #222; color: white; text-align: center;">
-            <button id="btnPrivacidade" onclick="togglePrivacidade()" style="background:none; border:none; font-size:22px; cursor:pointer;">👁️</button>
+            <button id="btnPrivacidade" onclick="togglePrivacidade()" style="background:none; border:none; font-size:22px; cursor:pointer;">${iconeOlho}</button>
           `;
           divFiltros.parentNode.insertBefore(divBusca, divFiltros);
       }
@@ -179,8 +155,24 @@ function render() {
 
   const termo = document.getElementById("inputBusca") ? document.getElementById("inputBusca").value.toLowerCase() : "";
 
+  // 2. Lógica de Filtragem
   const grupos = {};
-  const contasOrdenadas = contas
+  
+  // Se tiver termo de busca, ignora o filtro de botão e busca em TUDO
+  const contasFiltradas = contas.filter(c => {
+      if (termo) {
+          // Busca global (Pagas e Pendentes)
+          return c.nome.toLowerCase().includes(termo);
+      } else {
+          // Filtro Normal
+          if (c.oculta && filtro !== "pagas") return false; // Se não for filtro "pagas", esconde as ocultas
+          if (filtro === "pagas") return c.paga; // Mostra só pagas
+          // Filtro "todas" mostra pendentes (não pagas e não ocultas)
+          return !c.paga; 
+      }
+  });
+
+  const contasOrdenadas = contasFiltradas
     .map((c, index) => ({ ...c, index }))
     .sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
 
@@ -190,18 +182,15 @@ function render() {
       grupos[k].push(c);
   });
 
+  // Renderiza cada Mês
+  if (Object.keys(grupos).length === 0) {
+      lista.innerHTML = `<div style="text-align:center; padding:30px; color:#666;">Nenhuma conta encontrada.</div>`;
+      return;
+  }
+
   Object.keys(grupos).forEach(k => {
     const contasDoMes = grupos[k];
-    const visiveis = contasDoMes.filter(c => {
-      if (c.oculta) return false; 
-      if (termo && !c.nome.toLowerCase().includes(termo)) return false; 
-      if (filtro === "pagas") return c.paga; 
-      if (filtro === "pendentes" && c.paga) return false;
-      return true;
-    });
-
-    if (visiveis.length === 0) return; 
-
+    
     // Cálculos
     let totalMes = 0, pagoMes = 0;
     contasDoMes.forEach(c => {
@@ -236,7 +225,7 @@ function render() {
       </div>
     `;
 
-    visiveis.forEach(c => {
+    contasDoMes.forEach(c => {
       const div = document.createElement("div");
       const vencInfo = infoVencimento(c.vencimento);
       const icone = getIcone(c.nome); 
@@ -260,8 +249,31 @@ function render() {
          btnPix = `<button onclick="copiarPix(${c.index})" style="background:#4caf50; color:white;">Pix</button>`;
       }
 
-      // BOTÃO NOVO: ADIAR (⏩)
-      let btnAdiar = !c.paga ? `<button onclick="adiarConta(${c.index})" style="background:#0288d1;" title="Mover para outro mês">⏩</button>` : "";
+      // Botões de Ação
+      let acoesHtml = "";
+      if (termo) {
+          // Se for Busca (Recibo Individual)
+          acoesHtml = `
+            <button onclick="gerarComprovanteIndividual(${c.index})" title="Recibo PDF" style="background:#f39c12;">📄 PDF</button>
+            <button onclick="compartilharIndividual(${c.index})" title="Enviar Whatsapp" style="background:#25D366;">📱 Zap</button>
+            <button onclick="editarConta(${c.index})">✏️</button>
+          `;
+      } else {
+          // Modo Normal
+          let btnAdiar = !c.paga ? `<button onclick="adiarConta(${c.index})" style="background:#0288d1;" title="Mover">⏩</button>` : "";
+          let btnPagar = !c.paga ? `<button onclick="marcarPaga(${c.index})">✅ Pagar</button>` : `<button onclick="desfazerPagamento(${c.index})" style="background:#e67e22;">↩️</button>`;
+          let btnArq = !c.paga ? `<button onclick="ocultarConta(${c.index})">👁 Arq</button>` : "";
+          
+          acoesHtml = `
+            ${btnPagar}
+            ${btnPix}
+            ${btnAdiar}
+            <button onclick="clonarConta(${c.index})" title="Clonar">🧬</button> 
+            ${btnArq}
+            <button onclick="editarConta(${c.index})">✏️</button>
+            <button onclick="deletarConta(${c.index})">🗑️</button>
+          `;
+      }
 
       div.className = classes;
       div.innerHTML = `
@@ -272,152 +284,205 @@ function render() {
         <small class="vencimento ${vencInfo.classe}">${c.paga ? "PAGO ✅" : vencInfo.texto}</small>
         ${htmlParcelas}
         <div class="acoes">
-          ${!c.paga ? `<button onclick="marcarPaga(${c.index})">✅ Pagar</button>` : ""}
-          ${btnPix}
-          ${btnAdiar}
-          <button onclick="clonarConta(${c.index})" title="Clonar">🧬</button> 
-          <button onclick="ocultarConta(${c.index})">👁 Arq</button>
-          <button onclick="editarConta(${c.index})">✏️</button>
-          <button onclick="deletarConta(${c.index})">🗑️</button>
+          ${acoesHtml}
         </div>
       `;
-      // Swipe
-      let startX = 0;
-      div.addEventListener("touchstart", e => startX = e.touches[0].clientX);
-      div.addEventListener("touchend", e => {
-        const dx = e.changedTouches[0].clientX - startX;
-        if (dx > 80) ocultarConta(c.index);
-        if (dx < -80 && !c.paga) marcarPaga(c.index);
-      });
+      // Swipe simples (Só no modo normal)
+      if(!termo) {
+          let startX = 0;
+          div.addEventListener("touchstart", e => startX = e.touches[0].clientX);
+          div.addEventListener("touchend", e => {
+            const dx = e.changedTouches[0].clientX - startX;
+            if (dx > 80 && !c.paga) ocultarConta(c.index);
+            if (dx < -80 && !c.paga) marcarPaga(c.index);
+          });
+      }
       bloco.appendChild(div);
     });
     lista.appendChild(bloco);
   });
 }
 
-/* ================= HISTÓRICO ================= */
-function abrirHistorico() {
-  const lista = document.getElementById("lista");
-  lista.setAttribute("data-mode", "historico");
+/* ================= COMPARTILHAMENTO FISCAL E INDIVIDUAL ================= */
 
-  lista.innerHTML = `
-    <div style="padding: 10px;">
-        <button style="width:100%; padding:12px; background:#333; color:white; border:none; border-radius:8px; font-weight:bold; font-size:14px;" onclick="render()">
-            ⬅ Voltar para Início
-        </button>
-    </div>
-    <h2 style="text-align:center; margin-bottom:20px;">📜 Histórico</h2>
-  `;
+// 1. WhatsApp Mensal (Atualizado para data fixa)
+function compartilharMes(mes) {
+  let texto = `📅 *Resumo de Contas - ${mes}*\n\n`;
+  let total = 0, pago = 0;
+  const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes).sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
+  
+  if (contasDoMes.length === 0) { alert("Nada."); return; }
 
-  const grupos = {};
-  const historico = contas
-    .map((c, index) => ({...c, index}))
-    .filter(c => c.oculta) 
-    .sort((a, b) => new Date(b.vencimento) - new Date(a.vencimento));
+  contasDoMes.forEach(c => {
+    // Filtro do WhatsApp: Se estiver no filtro "Pagas", só manda as pagas. Se for "Todas", manda tudo.
+    if(filtro === "pagas" && !c.paga) return;
 
-  if(historico.length === 0) {
-      lista.innerHTML += `<div style="text-align:center; padding:20px; color:#888;">Nenhuma conta no histórico.</div>`;
-      return;
-  }
+    total += c.valor;
+    if (c.paga) { 
+        pago += c.valor; 
+        texto += `✅ ${c.nome}: R$ ${c.valor.toFixed(2)}\n`; 
+    } else {
+        // Mudança solicitada: Mostrar "Vence em DD/MM" em vez de dias
+        const diaMes = isoParaBR(c.vencimento).substring(0, 5); // Pega só DD/MM
+        texto += `⭕ ${c.nome} (Vence em ${diaMes}): R$ ${c.valor.toFixed(2)}\n`;
+    }
+  });
+  
+  texto += `\n--------------------\n💰 Total: R$ ${total.toFixed(2)}\n✅ Pago: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${(total - pago).toFixed(2)}`;
+  
+  compartilharTexto(texto);
+}
 
-  historico.forEach(c => {
-    const k = mesAno(c.vencimento);
-    if (!grupos[k]) grupos[k] = [];
-    grupos[k].push(c);
+// 2. PDF Fiscal (Tabela Completa)
+function baixarPdfMes(mes) {
+  if(!window.jspdf) { alert("Carregando PDF..."); return; }
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF();
+  
+  let y = 20;
+  pdf.setFontSize(18); 
+  pdf.text(`Relatório Financeiro: ${mes}`, 105, y, {align:'center'}); 
+  y += 15;
+
+  pdf.setFontSize(10);
+  // Cabeçalho da Tabela Manual
+  pdf.setFillColor(200, 200, 200);
+  pdf.rect(10, y, 190, 8, 'F');
+  pdf.font = "helvetica"; pdf.setFont(undefined, 'bold');
+  pdf.text("Conta", 12, y+5);
+  pdf.text("Vencimento", 80, y+5);
+  pdf.text("Pagamento", 110, y+5);
+  pdf.text("Status", 145, y+5);
+  pdf.text("Valor", 175, y+5);
+  pdf.setFont(undefined, 'normal');
+  y += 10;
+
+  let total = 0;
+  let totalPago = 0;
+
+  const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes && (filtro === "todas" || (filtro === "pagas" && c.paga)));
+
+  contasDoMes.forEach(c => {
+      total += c.valor;
+      if(c.paga) totalPago += c.valor;
+
+      const nomeLimpo = limparTextoPdf(c.nome);
+      const dataPag = c.dataPagamento ? isoParaBR(c.dataPagamento) : "-";
+      const status = c.paga ? "PAGO" : "ABERTO";
+
+      // Linha
+      pdf.text(nomeLimpo.substring(0, 30), 12, y);
+      pdf.text(isoParaBR(c.vencimento), 80, y);
+      pdf.text(dataPag, 110, y);
+      pdf.text(status, 145, y);
+      pdf.text(`R$ ${c.valor.toFixed(2)}`, 175, y);
+      
+      // Linha divisória fina
+      pdf.setDrawColor(220);
+      pdf.line(10, y+2, 200, y+2);
+      y += 8;
   });
 
-  Object.keys(grupos).forEach(k => {
-    let totalPagoNoMes = 0;
-    grupos[k].forEach(c => { if(c.paga) totalPagoNoMes += c.valor; });
+  y += 5;
+  pdf.setFont(undefined, 'bold');
+  pdf.text(`TOTAL PREVISTO: R$ ${total.toFixed(2)}`, 10, y);
+  pdf.text(`TOTAL PAGO: R$ ${totalPago.toFixed(2)}`, 110, y);
+  
+  pdf.save(`extrato_${mes.replace('/','-')}.pdf`);
+}
 
-    const container = document.createElement("div");
-    container.className = "historico-container";
+// 3. Comprovante Individual (WhatsApp)
+function compartilharIndividual(i) {
+    const c = contas[i];
+    const status = c.paga ? "✅ PAGO" : "⭕ PENDENTE";
+    const dataPag = c.paga ? `\n📅 Pago em: ${isoParaBR(c.dataPagamento)}` : "";
+    
+    let texto = `🧾 *Comprovante de Conta*\n\n`;
+    texto += `📌 Conta: ${c.nome}\n`;
+    texto += `💰 Valor: R$ ${c.valor.toFixed(2)}\n`;
+    texto += `🗓 Vencimento: ${isoParaBR(c.vencimento)}`;
+    texto += `${dataPag}\n`;
+    texto += `📊 Situação: ${status}`;
 
-    let html = `
-      <div class="historico-cabecalho">
-        <h3>📅 ${k}</h3>
-        <div class="botoes-historico">
-            <button onclick="compartilharMes('${k}')">📤</button>
-            <button onclick="baixarPdfMes('${k}')">📄</button>
-        </div>
-      </div>
-      <div class="historico-lista">
-    `;
+    compartilharTexto(texto);
+}
 
-    grupos[k].forEach(c => {
-        const dataPagamentoFmt = c.dataPagamento ? isoParaBR(c.dataPagamento) : "Apenas Arquivada";
-        const statusTexto = c.paga ? `Pago em: ${dataPagamentoFmt}` : "Pendente (Arquivada)";
-        const corValor = c.paga ? "#2ecc71" : "#ef5350";
-        const icone = getIcone(c.nome);
-        
-        let btnExtra = c.paga 
-            ? `<button onclick="desfazerPagamento(${c.index})" style="background:#e67e22; color:white;">↩️</button>` 
-            : `<button onclick="desarquivarConta(${c.index})" style="background:#fbc02d; color:black;">📂</button>`;
+// 4. Comprovante Individual (PDF)
+function gerarComprovanteIndividual(i) {
+    if(!window.jspdf) { alert("Erro PDF"); return; }
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF();
+    const c = contas[i];
 
-        html += `
-          <div class="conta-historico">
-            <div class="dados-historico">
-                <strong>${icone} ${c.nome}</strong>
-                <span>Venc: ${isoParaBR(c.vencimento)}</span>
-                <span>${statusTexto}</span>
-                <div style="color:${corValor}; margin-top:2px;">R$ ${c.valor.toFixed(2)}</div>
-            </div>
-            <div class="botoes-historico">
-                ${btnExtra}
-                <button onclick="editarConta(${c.index})">✏️</button>
-                <button onclick="deletarConta(${c.index})" style="background:#c62828;">🗑️</button>
-            </div>
-          </div>
-        `;
-    });
+    pdf.setFontSize(22);
+    pdf.text("Recibo de Conta", 105, 30, {align: "center"});
+    
+    pdf.setLineWidth(1);
+    pdf.line(20, 40, 190, 40);
 
-    html += `</div>
-      <div class="historico-resumo">
-         <span>Total Pago</span>
-         <strong>R$ ${totalPagoNoMes.toFixed(2)}</strong>
-      </div>
-    `;
-    container.innerHTML = html;
-    lista.appendChild(container);
-  });
+    pdf.setFontSize(14);
+    let y = 60;
+    
+    pdf.text(`Conta: ${limparTextoPdf(c.nome)}`, 20, y); y+=15;
+    pdf.text(`Valor: R$ ${c.valor.toFixed(2)}`, 20, y); y+=15;
+    pdf.text(`Vencimento: ${isoParaBR(c.vencimento)}`, 20, y); y+=15;
+    
+    if(c.paga) {
+        pdf.setTextColor(0, 150, 0);
+        pdf.text(`Status: PAGO`, 20, y); y+=10;
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFontSize(10);
+        pdf.text(`Data do Pagamento: ${isoParaBR(c.dataPagamento)}`, 20, y);
+    } else {
+        pdf.setTextColor(200, 0, 0);
+        pdf.text(`Status: PENDENTE`, 20, y);
+    }
+
+    pdf.setLineWidth(1);
+    pdf.line(20, 100, 190, 100);
+    
+    pdf.setFontSize(10);
+    pdf.setTextColor(100);
+    pdf.text("Gerado pelo App Minhas Contas", 105, 110, {align:"center"});
+
+    pdf.save(`recibo_${limparTextoPdf(c.nome)}.pdf`);
+}
+
+function compartilharTexto(texto) {
+    if (navigator.share) {
+        navigator.share({ title: 'Minhas Contas', text: texto }).catch(console.error);
+    } else {
+        const el = document.createElement('textarea');
+        el.value = texto; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+        alert("Copiado para área de transferência!");
+    }
 }
 
 /* ================= CRUD & AÇÕES ================= */
-// NOVA FUNÇÃO: ADIAR / MOVER CONTA ⏩
 function adiarConta(i) {
     if (!confirmarSeguranca("MOVER CONTA")) return;
-    
     const c = contas[i];
     const dataAtual = new Date(c.vencimento);
     dataAtual.setMonth(dataAtual.getMonth() + 1);
     const sugestao = dataAtual.toISOString().split('T')[0];
-    
     const novaData = prompt(`Para qual data deseja mover "${c.nome}"?`, isoParaBR(sugestao));
-    
-    if (novaData) {
-        c.vencimento = brParaISO(novaData);
-        salvar();
-        alert(`Conta movida para ${novaData} com sucesso! 🗓️`);
-    }
+    if (novaData) { c.vencimento = brParaISO(novaData); salvar(); alert(`Conta movida!`); }
 }
 
 function clonarConta(i) {
     if(!confirm("Clonar esta conta?")) return;
     const original = contas[i];
-    const copia = {
-        ...original,
-        nome: original.nome + " (Cópia)",
-        paga: false, oculta: false, dataPagamento: null,
-        recorrente: false, parcelaAtual: null, totalParcelas: null
-    };
-    contas.push(copia);
-    salvar();
+    const copia = { ...original, nome: original.nome + " (Cópia)", paga: false, oculta: false, dataPagamento: null, recorrente: false, parcelaAtual: null, totalParcelas: null };
+    contas.push(copia); salvar();
 }
 
 function marcarPaga(i) {
   if (!confirmarSeguranca("PAGAR")) return;
   const c = contas[i];
-  c.paga = true; c.oculta = true; c.dataPagamento = new Date().toISOString().split("T")[0];
+  c.paga = true; c.dataPagamento = new Date().toISOString().split("T")[0];
+  // Não ocultamos mais automaticamente se estivermos na aba "Todas", apenas marcamos verde
+  // Se quiser ocultar, use o botão Arquivar.
+  
   if (c.recorrente) {
     let gerar = true;
     let novaParcela = (c.parcelaAtual || 1) + 1;
@@ -425,29 +490,15 @@ function marcarPaga(i) {
     if (typeof c.repeticoes === "number") { c.repeticoes--; if (c.repeticoes <= 0) gerar = false; }
     if (totalP > 0 && novaParcela > totalP) gerar = false;
     if (gerar) {
-      contas.push({
-        ...c, paga: false, oculta: false, dataPagamento: null,
-        vencimento: proximoMes(c.vencimento), parcelaAtual: novaParcela, totalParcelas: totalP,
-      });
+      contas.push({ ...c, paga: false, oculta: false, dataPagamento: null, vencimento: proximoMes(c.vencimento), parcelaAtual: novaParcela, totalParcelas: totalP });
     }
   }
   salvar();
 }
 
-function ocultarConta(i) { 
-  if (!confirmarSeguranca("ARQUIVAR")) return;
-  contas[i].oculta = true; salvar(); 
-}
-
-function desarquivarConta(i) {
-  if(confirm("Desarquivar?")) { contas[i].oculta = false; salvar(); }
-}
-
-function desfazerPagamento(i) {
-    if (!confirmarSeguranca("DESFAZER")) return;
-    const c = contas[i]; c.paga = false; c.oculta = false; c.dataPagamento = null; 
-    salvar(); alert("Desfeito! ↩️");
-}
+function ocultarConta(i) { if (!confirmarSeguranca("ARQUIVAR")) return; contas[i].oculta = true; salvar(); }
+function desarquivarConta(i) { if(confirm("Desarquivar?")) { contas[i].oculta = false; salvar(); } }
+function desfazerPagamento(i) { if (!confirmarSeguranca("DESFAZER")) return; contas[i].paga = false; contas[i].dataPagamento = null; salvar(); }
 
 function adicionarConta() {
   const nome = prompt("Nome:"); if (!nome) return;
@@ -457,15 +508,8 @@ function adicionarConta() {
   const codigoPix = prompt("Pix (Opcional):");
   let recorrente = confirm("Recorrente?");
   let repeticoes = null, totalParcelas = 0;
-  if (recorrente) {
-    const r = prompt("Parcelas? (0 p/ infinito)");
-    const n = Number(r); if (n > 0) { repeticoes = n; totalParcelas = n; }
-  }
-  contas.push({
-    nome, valor, vencimento: brParaISO(data), codigoPix: codigoPix || "", 
-    paga: false, recorrente, repeticoes, totalParcelas: totalParcelas > 0 ? totalParcelas : null,
-    parcelaAtual: recorrente ? 1 : null, oculta: false, dataPagamento: null
-  });
+  if (recorrente) { const r = prompt("Parcelas? (0 p/ infinito)"); const n = Number(r); if (n > 0) { repeticoes = n; totalParcelas = n; } }
+  contas.push({ nome, valor, vencimento: brParaISO(data), codigoPix: codigoPix || "", paga: false, recorrente, repeticoes, totalParcelas: totalParcelas > 0 ? totalParcelas : null, parcelaAtual: recorrente ? 1 : null, oculta: false, dataPagamento: null });
   salvar();
 }
 
@@ -487,78 +531,19 @@ function editarConta(i) {
   }
   if (!novoNome || isNaN(novoValor) || !novaData) { alert("Inválido."); return; }
   c.nome = novoNome; c.valor = novoValor; c.vencimento = brParaISO(novaData);
-  c.codigoPix = novoPix || ""; c.recorrente = isRecorrente;
-  c.parcelaAtual = novaParcelaAtual; c.totalParcelas = novoTotalParcelas;
+  c.codigoPix = novoPix || ""; c.recorrente = isRecorrente; c.parcelaAtual = novaParcelaAtual; c.totalParcelas = novoTotalParcelas;
   salvar();
 }
 
 function deletarConta(i) { if (confirmarSeguranca("EXCLUIR")) { contas.splice(i,1); salvar(); } }
 function copiarPix(i) { const codigo = contas[i].codigoPix; if(!codigo) return; navigator.clipboard.writeText(codigo).then(() => alert("Copiado!")); }
+function abrirHistorico() { const lista = document.getElementById("lista"); lista.setAttribute("data-mode", "historico"); lista.innerHTML = `<div style="padding: 10px;"><button style="width:100%; padding:12px; background:#333; color:white; border:none; border-radius:8px; font-weight:bold; font-size:14px;" onclick="render()">⬅ Voltar para Início</button></div><h2 style="text-align:center; margin-bottom:20px;">📜 Histórico</h2><p style="text-align:center; color:#666;">Use a aba 'Pagas' ou a Busca para ver contas antigas.</p>`; }
 
 /* ================= EXTRAS ================= */
 function abrirOpcoes() { document.getElementById("modalOpcoes").style.display = "flex"; }
 function fecharOpcoes() { document.getElementById("modalOpcoes").style.display = "none"; }
-
-function baixarBackup() {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(contas));
-    const node = document.createElement('a');
-    node.setAttribute("href", dataStr);
-    node.setAttribute("download", `backup_${new Date().toISOString().slice(0,10)}.json`);
-    document.body.appendChild(node); node.click(); node.remove();
-}
-
-function lerArquivoBackup(input) {
-    const file = input.files[0]; if(!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const dados = JSON.parse(e.target.result);
-            if(Array.isArray(dados)) { if(confirm("Restaurar?")) { contas = dados; salvar(); alert("OK! 🔄"); location.reload(); } }
-        } catch(err) { alert("Erro."); }
-    };
-    reader.readAsText(file);
-}
-
-function compartilharMes(mes) {
-  let texto = `📅 *Resumo - ${mes}*\n\n`;
-  let total = 0, pago = 0;
-  const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes).sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
-  if (contasDoMes.length === 0) { alert("Nada."); return; }
-  contasDoMes.forEach(c => {
-    total += c.valor;
-    if (c.paga) { pago += c.valor; texto += `✅ ${c.nome}: R$ ${c.valor.toFixed(2)}\n`; } 
-    else {
-        const diff = Math.floor((new Date(c.vencimento) - new Date().setHours(0,0,0,0)) / (86400000));
-        let aviso = diff < 0 ? "VENCIDO" : (diff === 0 ? "HOJE" : (diff === 1 ? "Amanhã" : `${diff} dias`));
-        texto += `⭕ ${c.nome} (Vence em: ${aviso}): R$ ${c.valor.toFixed(2)}\n`;
-    }
-  });
-  texto += `\n--------------------\n💰 Total: R$ ${total.toFixed(2)}\n✅ Pago: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${(total - pago).toFixed(2)}`;
-  if (navigator.share) navigator.share({ title: `Contas ${mes}`, text: texto }).catch(console.error);
-  else { const el = document.createElement('textarea'); el.value = texto; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); alert("Copiado!"); }
-}
-
-function baixarPdfMes(mes) {
-  if(!window.jspdf) { alert("Carregando PDF..."); return; }
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF();
-  let y = 20;
-  pdf.setFontSize(16); pdf.text(`Relatório: ${mes}`, 105, y, {align:'center'}); y += 15;
-  pdf.setFontSize(10);
-  contas.forEach(c => {
-      if(mesAno(c.vencimento) !== mes) return;
-      if(c.oculta && !c.paga) return; 
-      // LIMPEZA DE EMOJIS APLICADA AQUI
-      const nomeLimpo = limparTextoPdf(c.nome);
-      pdf.text(`${nomeLimpo}`, 10, y);
-      pdf.text(`R$ ${c.valor.toFixed(2)}`, 130, y);
-      pdf.text(c.paga ? "PAGO" : "ABERTO", 170, y);
-      y += 8;
-  });
-  pdf.save(`extrato_${mes.replace('/','-')}.pdf`);
-}
-
-/* ================= CALC ================= */
+function baixarBackup() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(contas)); const node = document.createElement('a'); node.setAttribute("href", dataStr); node.setAttribute("download", `backup_${new Date().toISOString().slice(0,10)}.json`); document.body.appendChild(node); node.click(); node.remove(); }
+function lerArquivoBackup(input) { const file = input.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const dados = JSON.parse(e.target.result); if(Array.isArray(dados)) { if(confirm("Restaurar?")) { contas = dados; salvar(); alert("OK! 🔄"); location.reload(); } } } catch(err) { alert("Erro."); } }; reader.readAsText(file); }
 let calcExpressao = "";
 function abrirCalculadora() { document.getElementById("modalCalc").style.display = "flex"; }
 function fecharCalculadora() { document.getElementById("modalCalc").style.display = "none"; }
