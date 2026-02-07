@@ -1,4 +1,4 @@
-const CACHE_NAME = "gastos-v1";
+const CACHE_NAME = "meus-gastos-v5";
 
 const FILES_TO_CACHE = [
   "/App/",

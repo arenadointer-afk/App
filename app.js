@@ -1,26 +1,18 @@
 const PIN = "2007";
-let contas = [];
+let contas = JSON.parse(localStorage.getItem("contas")) || [];
 let filtro = "todas"; 
-
-/* ================= INICIALIZAÇÃO SEGURA ================= */
-try {
-  const dadosLocais = localStorage.getItem("contas");
-  if (dadosLocais) {
-    contas = JSON.parse(dadosLocais) || [];
-  }
-} catch (error) {
-  console.error("Erro crítico ao carregar dados:", error);
-  alert("Erro nos dados salvos. O app iniciou com uma lista vazia para recuperar o acesso.");
-  contas = [];
-}
 
 /* ================= SEGURANÇA EXTRA (MATEMÁTICA) ================= */
 function confirmarSeguranca(acao) {
+  // Gera dois números aleatórios entre 1 e 9
   const n1 = Math.floor(Math.random() * 9) + 1;
   const n2 = Math.floor(Math.random() * 9) + 1;
   const soma = n1 + n2;
+  
+  // Pede a resposta ao usuário
   const resposta = prompt(`🔒 Segurança para ${acao}:\nQuanto é ${n1} + ${n2}?`);
   
+  // Verifica se a resposta está correta
   if (resposta && parseInt(resposta) === soma) {
     return true;
   } else {
@@ -31,17 +23,13 @@ function confirmarSeguranca(acao) {
 
 /* ================= UTIL ================= */
 function salvar() {
-  try {
-    localStorage.setItem("contas", JSON.stringify(contas));
-    const lista = document.getElementById("lista");
-    if (lista && lista.getAttribute("data-mode") === "historico") {
-      abrirHistorico();
-    } else {
-      render();
-    }
-  } catch (e) {
-    alert("Erro ao salvar! Memória cheia ou erro no navegador.");
-    console.error(e);
+  localStorage.setItem("contas", JSON.stringify(contas));
+  const lista = document.getElementById("lista");
+  // Mantém a visualização atual (Home ou Histórico)
+  if (lista && lista.getAttribute("data-mode") === "historico") {
+    abrirHistorico();
+  } else {
+    render();
   }
 }
 
@@ -52,7 +40,6 @@ const isoParaBR = d => {
 };
 
 const brParaISO = d => {
-  if(!d) return "";
   const [di,m,a] = d.split("/");
   return `${a}-${m}-${di}`;
 };
@@ -84,17 +71,21 @@ function infoVencimento(dataISO) {
 
 /* ================= LOCK & SYSTEM ================= */
 document.addEventListener("DOMContentLoaded", () => {
-   // Para testar sem PIN, descomente abaixo:
+   // Se quiser pular a tela de bloqueio para testes, descomente a linha abaixo:
    // desbloquear(); 
 });
 
 function desbloquear() {
   const pinInput = document.getElementById("pin");
+  
+  // Se o campo de PIN existir e o valor for diferente do PIN correto
   if (pinInput && pinInput.value !== PIN) {
      alert("PIN incorreto. Tente: 2007");
      pinInput.value = "";
      return;
   }
+  
+  // Se estiver tudo certo, libera o app
   document.getElementById("lock").style.display = "none";
   document.getElementById("app").style.display = "block";
   carregarPerfil();
@@ -107,6 +98,7 @@ function carregarPerfil() {
   if (f && img) img.src = f;
 }
 
+// Configuração de Upload de Foto
 const imgPerfil = document.getElementById("fotoPerfil");
 const inputUpload = document.getElementById("uploadFoto");
 if(imgPerfil && inputUpload) {
@@ -155,6 +147,7 @@ function render() {
 
     if (visiveis.length === 0) return; 
 
+    // Cálculos de totais
     let totalMes = 0, pagoMes = 0;
     contasDoMes.forEach(c => {
          totalMes += c.valor;        
@@ -242,7 +235,7 @@ function abrirHistorico() {
             ⬅ Voltar para Início
         </button>
     </div>
-    <h2 style="text-align:center; margin-bottom:20px;">📜 Histórico / Arquivados</h2>
+    <h2 style="text-align:center; margin-bottom:20px;">📜 Histórico de Pagamentos</h2>
   `;
 
   const grupos = {};
@@ -281,27 +274,16 @@ function abrirHistorico() {
     `;
 
     grupos[k].forEach(c => {
-        const dataPagamentoFmt = c.dataPagamento ? isoParaBR(c.dataPagamento) : "Apenas Arquivada";
-        const statusTexto = c.paga ? `Pago em: ${dataPagamentoFmt}` : "Pendente (Arquivada)";
-        const corValor = c.paga ? "#2ecc71" : "#ef5350";
-        
-        let btnExtra = "";
-        if (c.paga) {
-             btnExtra = `<button onclick="desfazerPagamento(${c.index})" style="background:#e67e22; color:white;" title="Desfazer Pagamento">↩️</button>`;
-        } else {
-             btnExtra = `<button onclick="desarquivarConta(${c.index})" style="background:#fbc02d; color:black;" title="Desarquivar">📂</button>`;
-        }
-
+        const dataPagamentoFmt = c.dataPagamento ? isoParaBR(c.dataPagamento) : "Arquivada";
         html += `
           <div class="conta-historico">
             <div class="dados-historico">
                 <strong>${c.nome}</strong>
                 <span>Vencimento: ${isoParaBR(c.vencimento)}</span>
-                <span>${statusTexto}</span>
-                <div style="color:${corValor}; margin-top:2px;">R$ ${c.valor.toFixed(2)}</div>
+                <span>Pago em: ${dataPagamentoFmt}</span>
+                <div style="color:#2ecc71; margin-top:2px;">R$ ${c.valor.toFixed(2)}</div>
             </div>
             <div class="botoes-historico">
-                ${btnExtra}
                 <button onclick="editarConta(${c.index})">✏️</button>
                 <button onclick="deletarConta(${c.index})" style="background:#c62828;">🗑️</button>
             </div>
@@ -323,6 +305,7 @@ function abrirHistorico() {
 
 /* ================= AÇÕES & CRUD ================= */
 function marcarPaga(i) {
+  // === SEGURANÇA APLICADA ===
   if (!confirmarSeguranca("PAGAR CONTA")) return;
 
   const c = contas[i];
@@ -353,28 +336,7 @@ function marcarPaga(i) {
   salvar();
 }
 
-function ocultarConta(i) { 
-  if (!confirmarSeguranca("ARQUIVAR CONTA")) return;
-  contas[i].oculta = true; 
-  salvar(); 
-}
-
-function desarquivarConta(i) {
-  if(confirm("Tem certeza que deseja desarquivar e voltar para Home?")) {
-    contas[i].oculta = false;
-    salvar();
-  }
-}
-
-function desfazerPagamento(i) {
-    if (!confirmarSeguranca("DESFAZER PAGAMENTO")) return;
-    const c = contas[i];
-    c.paga = false;         
-    c.oculta = false;       
-    c.dataPagamento = null; 
-    salvar();
-    alert("Pagamento desfeito! ↩️");
-}
+function ocultarConta(i) { contas[i].oculta = true; salvar(); }
 
 function adicionarConta() {
   const nome = prompt("Nome da conta:");
@@ -385,7 +347,7 @@ function adicionarConta() {
   const data = prompt("Vencimento (DD/MM/AAAA):");
   if (!data) return;
 
-  const codigoPix = prompt("Cole o código PIX (Opcional):");
+  const codigoPix = prompt("Cole o código PIX / Barras (Opcional):");
 
   let recorrente = confirm("Recorrente/Parcelada?");
   let repeticoes = null, totalParcelas = 0;
@@ -408,58 +370,22 @@ function adicionarConta() {
 }
 
 function editarConta(i) {
-  if (!confirmarSeguranca("EDITAR DADOS")) return;
-
   const c = contas[i];
-  const novoNome = prompt("Nome da conta:", c.nome);
-  if (novoNome === null) return; 
+  const nome = prompt("Nome:", c.nome);
+  const valorStr = prompt("Valor:", c.valor);
+  const valor = parseFloat(String(valorStr).replace(",", "."));
+  const data = prompt("Vencimento (DD/MM/AAAA):", isoParaBR(c.vencimento));
+  const pix = prompt("Código PIX:", c.codigoPix || "");
 
-  const novoValorStr = prompt("Valor (R$):", c.valor);
-  if (novoValorStr === null) return;
-  const novoValor = parseFloat(novoValorStr.replace(",", "."));
-
-  const novaData = prompt("Vencimento (DD/MM/AAAA):", isoParaBR(c.vencimento));
-  if (novaData === null) return;
-
-  const novoPix = prompt("Código PIX:", c.codigoPix || "");
-  
-  const isRecorrente = confirm("É recorrente (tem parcelas ou repete)?\nOK = Sim\nCancelar = Não");
-  
-  let novaParcelaAtual = null;
-  let novoTotalParcelas = null;
-  let novasRepeticoes = null;
-
-  if (isRecorrente) {
-      const pAtual = prompt("Nº da parcela ATUAL?", c.parcelaAtual || 1);
-      novaParcelaAtual = pAtual ? parseInt(pAtual) : 1;
-
-      const pTotal = prompt("TOTAL de parcelas? (0 p/ infinito)", c.totalParcelas || "");
-      novoTotalParcelas = (pTotal && parseInt(pTotal) > 0) ? parseInt(pTotal) : null;
-      
-      if (novoTotalParcelas) {
-          novasRepeticoes = novoTotalParcelas - novaParcelaAtual; 
-      }
-  }
-
-  if (!novoNome || isNaN(novoValor) || !novaData) {
-      alert("Dados inválidos. Cancelado.");
-      return;
-  }
-
-  c.nome = novoNome;
-  c.valor = novoValor;
-  c.vencimento = brParaISO(novaData);
-  c.codigoPix = novoPix || "";
-  c.recorrente = isRecorrente;
-  c.parcelaAtual = novaParcelaAtual;
-  c.totalParcelas = novoTotalParcelas;
-  c.repeticoes = novasRepeticoes;
-
+  if (!nome || isNaN(valor) || !data) return;
+  c.nome = nome; c.valor = valor; c.vencimento = brParaISO(data);
+  c.codigoPix = pix;
   salvar();
 }
 
 function deletarConta(i) {
-  if (confirmarSeguranca("EXCLUIR")) { 
+  // === SEGURANÇA APLICADA ===
+  if (confirmarSeguranca("EXCLUIR PERMANENTEMENTE")) { 
     contas.splice(i,1); 
     salvar(); 
   }
@@ -468,10 +394,12 @@ function deletarConta(i) {
 function copiarPix(i) {
     const codigo = contas[i].codigoPix;
     if(!codigo) return;
-    navigator.clipboard.writeText(codigo).then(() => alert("Copiado! ✅"));
+    navigator.clipboard.writeText(codigo).then(() => {
+        alert("Código copiado! ✅");
+    });
 }
 
-/* ================= BACKUP & TOOLS ================= */
+/* ================= BACKUP & RESTORE ================= */
 function abrirOpcoes() { document.getElementById("modalOpcoes").style.display = "flex"; }
 function fecharOpcoes() { document.getElementById("modalOpcoes").style.display = "none"; }
 
@@ -493,10 +421,10 @@ function lerArquivoBackup(input) {
         try {
             const dados = JSON.parse(e.target.result);
             if(Array.isArray(dados)) {
-                if(confirm("Substituir todas as contas pelo backup?")) {
+                if(confirm("Isso substituirá todas as contas atuais pelo backup. Continuar?")) {
                     contas = dados;
                     salvar();
-                    alert("Restaurado! 🔄");
+                    alert("Backup restaurado com sucesso! 🔄");
                     location.reload();
                 }
             } else { alert("Arquivo inválido."); }
@@ -505,9 +433,9 @@ function lerArquivoBackup(input) {
     reader.readAsText(file);
 }
 
-/* ================= ATUALIZAÇÃO: TEXTO "VENCE EM:" ================= */
+/* ================= EXPORTAR ================= */
 function compartilharMes(mes) {
-  let texto = `📅 *Resumo - ${mes}*\n\n`;
+  let texto = `📅 *Resumo de Contas - ${mes}*\n\n`;
   let total = 0, pago = 0;
   
   const contasDoMes = contas
@@ -518,28 +446,13 @@ function compartilharMes(mes) {
 
   contasDoMes.forEach(c => {
     total += c.valor;
-    if (c.paga) {
-        pago += c.valor;
-        texto += `✅ ${c.nome}: R$ ${c.valor.toFixed(2)}\n`;
-    } else {
-        const hoje = new Date();
-        hoje.setHours(0,0,0,0);
-        const venc = new Date(c.vencimento);
-        venc.setHours(0,0,0,0);
-        const diff = Math.floor((venc - hoje) / (1000 * 60 * 60 * 24));
-
-        // === MUDANÇA AQUI ===
-        let aviso = "";
-        if (diff < 0) aviso = "VENCIDO";
-        else if (diff === 0) aviso = "Vence HOJE";
-        else if (diff === 1) aviso = "Vence amanhã";
-        else aviso = `Vence em: ${diff} dias`; // Texto alterado conforme pedido
-
-        texto += `⭕ ${c.nome} (${aviso}): R$ ${c.valor.toFixed(2)}\n`;
-    }
+    if (c.paga) pago += c.valor;
+    const check = c.paga ? "✅" : "⭕"; 
+    texto += `${check} ${c.nome}: R$ ${c.valor.toFixed(2)}\n`;
   });
   
-  texto += `\n--------------------\n💰 Total: R$ ${total.toFixed(2)}\n✅ Pago: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${(total - pago).toFixed(2)}`;
+  const faltante = total - pago;
+  texto += `\n--------------------\n💰 *Total:* R$ ${total.toFixed(2)}\n✅ *Pago:* R$ ${pago.toFixed(2)}\n⏳ *Falta:* R$ ${faltante.toFixed(2)}`;
   
   if (navigator.share) navigator.share({ title: `Contas ${mes}`, text: texto }).catch(console.error);
   else {
@@ -554,28 +467,51 @@ function baixarPdfMes(mes) {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF();
   let y = 20;
-  pdf.text(`Relatório: ${mes}`, 105, y, {align:'center'}); y += 15;
+  pdf.setFontSize(16); pdf.text(`Relatório: ${mes}`, 105, y, {align:'center'}); y += 15;
+  let total = 0;
+  pdf.setFontSize(10);
+  pdf.text("Conta", 10, y); pdf.text("Valor", 80, y); pdf.text("Vencimento", 120, y); pdf.text("Status", 160, y);
+  y += 5; pdf.line(10, y, 200, y); y += 8;
   contas.forEach(c => {
       if(mesAno(c.vencimento) !== mes) return;
       if(c.oculta && !c.paga) return; 
-      pdf.text(`${c.nome} - R$ ${c.valor.toFixed(2)} - ${c.paga ? "OK" : "ABERTO"}`, 10, y);
-      y += 10;
+      total += c.valor;
+      pdf.text(`${c.nome}`, 10, y); pdf.text(`R$ ${c.valor.toFixed(2)}`, 80, y);
+      pdf.text(`${isoParaBR(c.vencimento)}`, 120, y); pdf.text(c.paga ? "PAGO" : "ABERTO", 160, y);
+      y += 8;
   });
-  pdf.save(`extrato.pdf`);
+  y += 5; pdf.line(10, y, 200, y); y += 10;
+  pdf.setFontSize(12); pdf.text(`Total Mês: R$ ${total.toFixed(2)}`, 10, y);
+  pdf.save(`extrato_${mes.replace('/','-')}.pdf`);
 }
 
 /* ================= CALCULADORA ================= */
 let calcExpressao = "";
 function abrirCalculadora() { document.getElementById("modalCalc").style.display = "flex"; }
 function fecharCalculadora() { document.getElementById("modalCalc").style.display = "none"; }
-function calcAdd(v) { calcExpressao += v; document.getElementById("calcDisplay").value = calcExpressao; }
-function calcLimpar() { calcExpressao = ""; document.getElementById("calcDisplay").value = ""; }
+
+function calcAdd(v) { 
+  calcExpressao += v; 
+  document.getElementById("calcDisplay").value = calcExpressao; 
+}
+
+function calcLimpar() { 
+  calcExpressao = ""; 
+  document.getElementById("calcDisplay").value = ""; 
+}
+
 function calcCalcular() { 
     try { 
-        document.getElementById("calcDisplay").value = Function('"use strict";return (' + calcExpressao + ')')();
-        calcExpressao = document.getElementById("calcDisplay").value;
-    } catch { alert("Erro"); calcLimpar(); } 
+        // Cria uma função segura para avaliar a expressão
+        const result = Function('"use strict";return (' + calcExpressao + ')')(); 
+        document.getElementById("calcDisplay").value = result;
+        calcExpressao = String(result);
+    } catch { 
+        alert("Erro na conta"); 
+        calcLimpar(); 
+    } 
 }
+
 function fecharAviso() { 
   const aviso = document.getElementById("avisoSwipe");
   if(aviso) aviso.remove(); 
