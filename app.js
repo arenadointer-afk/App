@@ -83,7 +83,6 @@ document.addEventListener("DOMContentLoaded", () => {
    if(localStorage.getItem("modoPrivado") === "true") {
        document.body.classList.add("modo-privado");
    }
-   // desbloquear(); 
 });
 
 function desbloquear() {
@@ -124,7 +123,6 @@ function render() {
   if(!lista) return;
   lista.innerHTML = "";
 
-  // Barra de Busca
   if(!document.getElementById("btnPrivacidade")) {
       const divFiltros = document.querySelector(".filtros");
       if(divFiltros && !divFiltros.previousElementSibling.classList.contains("busca-container")) {
@@ -143,11 +141,13 @@ function render() {
 
   const termo = document.getElementById("inputBusca") ? document.getElementById("inputBusca").value.toLowerCase() : "";
 
-  // 1. Agrupar TODAS as contas por mês primeiro (para o cálculo correto)
-  const grupos = {};
-  const contasOrdenadasGlobal = [...contas].sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
+  // Correção para botões funcionarem com filtros: mapeia índice original
+  const contasComIndex = contas.map((c, i) => ({...c, originalIndex: i}));
 
-  contasOrdenadasGlobal.forEach(c => {
+  const grupos = {};
+  const contasOrdenadas = [...contasComIndex].sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
+
+  contasOrdenadas.forEach(c => {
       const k = mesAno(c.vencimento);
       if (!grupos[k]) grupos[k] = [];
       grupos[k].push(c);
@@ -161,7 +161,7 @@ function render() {
   Object.keys(grupos).forEach(k => {
     const todasDoMes = grupos[k];
     
-    // === CÁLCULO FINANCEIRO (Considera TUDO do mês) ===
+    // Cálculo financeiro usa TUDO do mês (independente se está oculto ou pago)
     let totalMes = 0, pagoMes = 0;
     todasDoMes.forEach(c => {
          totalMes += c.valor;        
@@ -170,15 +170,15 @@ function render() {
     const faltaMes = totalMes - pagoMes;
     let pct = totalMes > 0 ? (pagoMes / totalMes) * 100 : 0;
 
-    // === FILTRAGEM VISUAL ===
+    // Filtro Visual (O que aparece na lista)
     const contasVisiveis = todasDoMes.filter(c => {
         if (termo) return c.nome.toLowerCase().includes(termo);
         if (filtro === "pagas") return c.paga;
-        if (filtro === "todas") return !c.oculta;
+        if (filtro === "todas") return !c.oculta; // Oculta as arquivadas da lista
         return true;
     });
 
-    if (termo && contasVisiveis.length === 0) return;
+    if (!termo && contasVisiveis.length === 0) return;
 
     const bloco = document.createElement("div");
     bloco.className = "mes-container";
@@ -226,29 +226,31 @@ function render() {
 
       let btnPix = "";
       if(c.codigoPix && c.codigoPix.length > 5) {
-         btnPix = `<button onclick="copiarPix(${c.index})" style="background:#4caf50; color:white;">Pix</button>`;
+         // Usa originalIndex para garantir que copie o Pix certo
+         btnPix = `<button onclick="copiarPix(${c.originalIndex})" style="background:#4caf50; color:white;">Pix</button>`;
       }
 
       let acoesHtml = "";
+      // Usa originalIndex para garantir que a ação seja na conta certa
       if (termo) {
           acoesHtml = `
-            <button onclick="gerarComprovanteIndividual(${c.index})" title="Recibo PDF" style="background:#f39c12;">📄 PDF</button>
-            <button onclick="compartilharIndividual(${c.index})" title="Enviar Whatsapp" style="background:#25D366;">📱 Zap</button>
-            <button onclick="editarConta(${c.index})">✏️</button>
+            <button onclick="gerarComprovanteIndividual(${c.originalIndex})" title="Recibo PDF" style="background:#f39c12;">📄 PDF</button>
+            <button onclick="compartilharIndividual(${c.originalIndex})" title="Enviar Whatsapp" style="background:#25D366;">📱 Zap</button>
+            <button onclick="editarConta(${c.originalIndex})">✏️</button>
           `;
       } else {
-          let btnAdiar = !c.paga ? `<button onclick="adiarConta(${c.index})" style="background:#0288d1;" title="Mover">⏩</button>` : "";
-          let btnPagar = !c.paga ? `<button onclick="marcarPaga(${c.index})">✅ Pagar</button>` : `<button onclick="desfazerPagamento(${c.index})" style="background:#e67e22;">↩️</button>`;
-          let btnArq = `<button onclick="ocultarConta(${c.index})">👁 Arq</button>`;
+          let btnAdiar = !c.paga ? `<button onclick="adiarConta(${c.originalIndex})" style="background:#0288d1;" title="Mover">⏩</button>` : "";
+          let btnPagar = !c.paga ? `<button onclick="marcarPaga(${c.originalIndex})">✅ Pagar</button>` : `<button onclick="desfazerPagamento(${c.originalIndex})" style="background:#e67e22;">↩️</button>`;
+          let btnArq = `<button onclick="ocultarConta(${c.originalIndex})">👁 Arq</button>`;
           
           acoesHtml = `
             ${btnPagar}
             ${btnPix}
             ${btnAdiar}
-            <button onclick="clonarConta(${c.index})" title="Clonar">🧬</button> 
+            <button onclick="clonarConta(${c.originalIndex})" title="Clonar">🧬</button> 
             ${btnArq}
-            <button onclick="editarConta(${c.index})">✏️</button>
-            <button onclick="deletarConta(${c.index})">🗑️</button>
+            <button onclick="editarConta(${c.originalIndex})">✏️</button>
+            <button onclick="deletarConta(${c.originalIndex})">🗑️</button>
           `;
       }
       div.className = classes;
@@ -268,8 +270,8 @@ function render() {
           div.addEventListener("touchstart", e => startX = e.touches[0].clientX);
           div.addEventListener("touchend", e => {
             const dx = e.changedTouches[0].clientX - startX;
-            if (dx > 80) ocultarConta(c.index);
-            if (dx < -80 && !c.paga) marcarPaga(c.index);
+            if (dx > 80) ocultarConta(c.originalIndex);
+            if (dx < -80 && !c.paga) marcarPaga(c.originalIndex);
           });
       }
       bloco.appendChild(div);
@@ -283,22 +285,16 @@ function compartilharMes(mes) {
   let texto = `📅 *Resumo de Contas - ${mes}*\n\n`;
   let total = 0, pago = 0;
   const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes).sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
-  
   if (contasDoMes.length === 0) { alert("Nada."); return; }
-
   contasDoMes.forEach(c => {
     if(filtro === "pagas" && !c.paga) return; 
-
     total += c.valor;
-    if (c.paga) { 
-        pago += c.valor; 
-        texto += `✅ ${c.nome}: R$ ${c.valor.toFixed(2)}\n`; 
-    } else {
+    if (c.paga) { pago += c.valor; texto += `✅ ${c.nome}: R$ ${c.valor.toFixed(2)}\n`; } 
+    else {
         const diaMes = isoParaBR(c.vencimento).substring(0, 5); 
         texto += `⭕ ${c.nome} (Vence em ${diaMes}): R$ ${c.valor.toFixed(2)}\n`;
     }
   });
-  
   texto += `\n--------------------\n💰 Total: R$ ${total.toFixed(2)}\n✅ Pago: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${(total - pago).toFixed(2)}`;
   compartilharTexto(texto);
 }
@@ -309,16 +305,13 @@ function baixarPdfMes(mes) {
   const pdf = new jsPDF();
   let y = 20;
   pdf.setFontSize(18); pdf.text(`Relatório Financeiro: ${mes}`, 105, y, {align:'center'}); y += 15;
-
   pdf.setFontSize(10);
   pdf.setFillColor(200, 200, 200); pdf.rect(10, y, 190, 8, 'F');
   pdf.font = "helvetica"; pdf.setFont(undefined, 'bold');
   pdf.text("Conta", 12, y+5); pdf.text("Vencimento", 80, y+5); pdf.text("Pagamento", 110, y+5); pdf.text("Status", 145, y+5); pdf.text("Valor", 175, y+5);
   pdf.setFont(undefined, 'normal'); y += 10;
-
   let total = 0; let totalPago = 0;
   const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes && (filtro === "todas" || (filtro === "pagas" && c.paga)));
-
   contasDoMes.forEach(c => {
       total += c.valor; if(c.paga) totalPago += c.valor;
       const nomeLimpo = limparTextoPdf(c.nome);
@@ -331,7 +324,6 @@ function baixarPdfMes(mes) {
       pdf.text(`R$ ${c.valor.toFixed(2)}`, 175, y);
       pdf.setDrawColor(220); pdf.line(10, y+2, 200, y+2); y += 8;
   });
-
   y += 5; pdf.setFont(undefined, 'bold');
   pdf.text(`TOTAL PREVISTO: R$ ${total.toFixed(2)}`, 10, y);
   pdf.text(`TOTAL PAGO: R$ ${totalPago.toFixed(2)}`, 110, y);
@@ -386,7 +378,7 @@ function clonarConta(i) {
 function marcarPaga(i) {
   if (!confirmarSeguranca("PAGAR")) return;
   const c = contas[i];
-  c.paga = true; c.dataPagamento = new Date().toISOString().split("T")[0];
+  c.paga = true; c.oculta = true; c.dataPagamento = new Date().toISOString().split("T")[0];
   if (c.recorrente) {
     let gerar = true; let novaParcela = (c.parcelaAtual || 1) + 1; let totalP = c.totalParcelas || 0;
     if (typeof c.repeticoes === "number") { c.repeticoes--; if (c.repeticoes <= 0) gerar = false; }
