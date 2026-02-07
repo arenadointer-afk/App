@@ -124,7 +124,7 @@ function render() {
   if(!lista) return;
   lista.innerHTML = "";
 
-  // Barra de Busca e Privacidade
+  // Barra de Busca
   if(!document.getElementById("btnPrivacidade")) {
       const divFiltros = document.querySelector(".filtros");
       if(divFiltros && !divFiltros.previousElementSibling.classList.contains("busca-container")) {
@@ -143,31 +143,11 @@ function render() {
 
   const termo = document.getElementById("inputBusca") ? document.getElementById("inputBusca").value.toLowerCase() : "";
 
-  // === LÓGICA DE FILTRAGEM CORRIGIDA ===
-  const contasFiltradas = contas.filter(c => {
-      // 1. Busca Global (Ignora abas)
-      if (termo) return c.nome.toLowerCase().includes(termo);
-
-      // 2. Regra de Ocultas (Arquivadas)
-      // Se a conta está oculta, ela só aparece na aba "Pagas" (como histórico) ou se for explicitamente buscada.
-      // Na aba "Todas", contas ocultas NÃO aparecem.
-      if (c.oculta && filtro !== "pagas") return false;
-
-      // 3. Regra da Aba "Pagas"
-      if (filtro === "pagas") return c.paga;
-
-      // 4. Regra da Aba "Todas"
-      // Aqui estava o erro! Antes estava retornando !c.paga (só pendentes).
-      // Agora retornamos TRUE para mostrar TUDO (pagas e pendentes) que não esteja oculto.
-      return true; 
-  });
-
+  // 1. Agrupar TODAS as contas por mês primeiro (para o cálculo correto)
   const grupos = {};
-  const contasOrdenadas = contasFiltradas
-    .map((c, index) => ({ ...c, index }))
-    .sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
+  const contasOrdenadasGlobal = [...contas].sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
 
-  contasOrdenadas.forEach(c => {
+  contasOrdenadasGlobal.forEach(c => {
       const k = mesAno(c.vencimento);
       if (!grupos[k]) grupos[k] = [];
       grupos[k].push(c);
@@ -179,16 +159,26 @@ function render() {
   }
 
   Object.keys(grupos).forEach(k => {
-    const contasDoMes = grupos[k];
-    let totalMes = 0, pagoMes = 0;
+    const todasDoMes = grupos[k];
     
-    // Cálculo dos Totais (Agora inclui tudo que está na tela)
-    contasDoMes.forEach(c => {
+    // === CÁLCULO FINANCEIRO (Considera TUDO do mês) ===
+    let totalMes = 0, pagoMes = 0;
+    todasDoMes.forEach(c => {
          totalMes += c.valor;        
          if(c.paga) pagoMes += c.valor; 
     });
     const faltaMes = totalMes - pagoMes;
     let pct = totalMes > 0 ? (pagoMes / totalMes) * 100 : 0;
+
+    // === FILTRAGEM VISUAL ===
+    const contasVisiveis = todasDoMes.filter(c => {
+        if (termo) return c.nome.toLowerCase().includes(termo);
+        if (filtro === "pagas") return c.paga;
+        if (filtro === "todas") return !c.oculta;
+        return true;
+    });
+
+    if (termo && contasVisiveis.length === 0) return;
 
     const bloco = document.createElement("div");
     bloco.className = "mes-container";
@@ -215,7 +205,7 @@ function render() {
       </div>
     `;
 
-    contasDoMes.forEach(c => {
+    contasVisiveis.forEach(c => {
       const div = document.createElement("div");
       const vencInfo = infoVencimento(c.vencimento);
       const icone = getIcone(c.nome); 
@@ -239,7 +229,6 @@ function render() {
          btnPix = `<button onclick="copiarPix(${c.index})" style="background:#4caf50; color:white;">Pix</button>`;
       }
 
-      // Botões
       let acoesHtml = "";
       if (termo) {
           acoesHtml = `
@@ -248,11 +237,8 @@ function render() {
             <button onclick="editarConta(${c.index})">✏️</button>
           `;
       } else {
-          // Normal
           let btnAdiar = !c.paga ? `<button onclick="adiarConta(${c.index})" style="background:#0288d1;" title="Mover">⏩</button>` : "";
           let btnPagar = !c.paga ? `<button onclick="marcarPaga(${c.index})">✅ Pagar</button>` : `<button onclick="desfazerPagamento(${c.index})" style="background:#e67e22;">↩️</button>`;
-          
-          // O botão Arquivar só aparece se NÃO estiver pago ou se estiver pago mas visível na Home
           let btnArq = `<button onclick="ocultarConta(${c.index})">👁 Arq</button>`;
           
           acoesHtml = `
@@ -265,7 +251,6 @@ function render() {
             <button onclick="deletarConta(${c.index})">🗑️</button>
           `;
       }
-
       div.className = classes;
       div.innerHTML = `
         ${badgeHtml}
@@ -297,13 +282,12 @@ function render() {
 function compartilharMes(mes) {
   let texto = `📅 *Resumo de Contas - ${mes}*\n\n`;
   let total = 0, pago = 0;
-  // Pega TODAS as contas do mês para o relatório (Pagas e Não Pagas), respeitando o filtro atual
   const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes).sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
   
   if (contasDoMes.length === 0) { alert("Nada."); return; }
 
   contasDoMes.forEach(c => {
-    if(filtro === "pagas" && !c.paga) return; // Se for filtro Pagas, só manda as pagas
+    if(filtro === "pagas" && !c.paga) return; 
 
     total += c.valor;
     if (c.paga) { 
@@ -333,7 +317,6 @@ function baixarPdfMes(mes) {
   pdf.setFont(undefined, 'normal'); y += 10;
 
   let total = 0; let totalPago = 0;
-  // Pega contas do mês (se estiver na aba pagas, só as pagas)
   const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes && (filtro === "todas" || (filtro === "pagas" && c.paga)));
 
   contasDoMes.forEach(c => {
@@ -404,7 +387,6 @@ function marcarPaga(i) {
   if (!confirmarSeguranca("PAGAR")) return;
   const c = contas[i];
   c.paga = true; c.dataPagamento = new Date().toISOString().split("T")[0];
-  // ATENÇÃO: c.oculta NÃO é mais setado aqui. Conta permanece na tela, mas verde.
   if (c.recorrente) {
     let gerar = true; let novaParcela = (c.parcelaAtual || 1) + 1; let totalP = c.totalParcelas || 0;
     if (typeof c.repeticoes === "number") { c.repeticoes--; if (c.repeticoes <= 0) gerar = false; }
