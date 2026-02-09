@@ -3,12 +3,12 @@ let contas = [];
 let logs = []; 
 let filtro = "todas"; 
 
-/* ================= INICIALIZAÇÃO ================= */
+/* ================= INICIALIZAÇÃO SEGURA ================= */
 try {
   const dadosLocais = localStorage.getItem("contas");
   if (dadosLocais) {
       contas = JSON.parse(dadosLocais) || [];
-      // Garante IDs únicos para o sistema de histórico
+      // Garante IDs únicos para o sistema funcionar
       contas.forEach(c => { if(!c.id) c.id = Date.now() + Math.random(); });
   }
   const logsLocais = localStorage.getItem("logs");
@@ -18,7 +18,7 @@ try {
   contas = []; logs = [];
 }
 
-/* ================= UTILITÁRIOS VISUAIS ================= */
+/* ================= UTILITÁRIOS (DATAS E VISUAL) ================= */
 function getIcone(nome) {
   const n = nome.toLowerCase();
   if (n.includes("luz") || n.includes("energia") || n.includes("cemig") || n.includes("enel")) return "💡";
@@ -54,6 +54,10 @@ function togglePrivacidade() {
     localStorage.setItem("modoPrivado", document.body.classList.contains("modo-privado"));
     const btn = document.getElementById("btnPrivacidade");
     if(btn) btn.innerHTML = document.body.classList.contains("modo-privado") ? "🙈" : "👁️";
+}
+
+function limparTextoPdf(texto) {
+    return texto.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
 }
 
 function toggleMenu(id) {
@@ -102,42 +106,7 @@ function registrarLog(acao, detalhe, backupData = null, relatedId = null) {
     salvar();
 }
 
-function desfazerAcaoLog(logId) {
-    const logIndex = logs.findIndex(l => l.id === logId);
-    if(logIndex === -1) return;
-    const log = logs[logIndex];
-    
-    if (!log.backup) { alert("Esta ação não pode ser desfeita automaticamente."); return; }
-    if (!confirm(`Deseja desfazer: "${log.acao}"?`)) return;
-
-    // 1. Se a ação criou algo novo (pagamento parcial, recorrência), apaga esse item criado
-    if (log.relatedId) {
-        const relatedIndex = contas.findIndex(c => c.id === log.relatedId);
-        if (relatedIndex !== -1) contas.splice(relatedIndex, 1);
-    }
-
-    // 2. Restaura o estado anterior (backup) da conta original
-    if (log.acao.includes("EXCLUÍDO")) {
-        // Se foi excluída, traz ela de volta
-        contas.push(log.backup);
-    } else {
-        // Se foi editada/paga, acha ela pelo ID e reverte os dados
-        const contaIndex = contas.findIndex(c => c.id === log.backup.id);
-        if (contaIndex !== -1) {
-            contas[contaIndex] = log.backup;
-        } else {
-            // Caso raro onde a conta original também foi apagada manualmente depois
-            contas.push(log.backup);
-        }
-    }
-
-    logs.splice(logIndex, 1); // Remove o log da ação desfeita
-    salvar();
-    abrirHistorico(); // Atualiza a tela de histórico
-    alert("Ação desfeita com sucesso! ↩️");
-}
-
-/* ================= RENDERIZAÇÃO ================= */
+/* ================= RENDERIZAÇÃO (TELA INICIAL) ================= */
 function render() {
   const lista = document.getElementById("lista");
   if(!lista) return;
@@ -254,7 +223,7 @@ function iniciarPagamento(i) {
     if (!confirmarSeguranca("PAGAR CONTA")) return;
     const c = contas[i];
     const tipo = prompt(`Valor: R$ ${c.valor.toFixed(2)}\n\n1 - TOTAL\n2 - PARCIAL`, "1");
-    const backup = JSON.parse(JSON.stringify(c)); // Cria backup para desfazer depois
+    const backup = JSON.parse(JSON.stringify(c));
 
     if (tipo === "1") {
         c.paga = true; c.oculta = true; c.dataPagamento = new Date().toISOString().split("T")[0];
@@ -286,7 +255,6 @@ function iniciarPagamento(i) {
         c.valor = restante; c.obs = `Restante parcial.`;
         if (mover) { c.vencimento = proximoMes(c.vencimento); c.obs += ` Adiado.`; }
         
-        // Registra log com ID do pagamento parcial para poder apagar depois se desfazer
         registrarLog("PAGAMENTO PARCIAL", `${c.nome}: Pagou R$ ${valorPago}, restou R$ ${restante}`, backup, regPag.id);
         salvar(); alert("Parcial registrado! ⚠️");
     }
@@ -308,11 +276,44 @@ function abrirHistorico() {
     logs.forEach(log => {
         const item = document.createElement("div");
         item.style.cssText = "background:#222; margin:5px 0; padding:10px; border-radius:8px; border-left:3px solid #7b2ff7; display:flex; justify-content:space-between; align-items:center;";
-        // Só mostra botão desfazer se tiver backup
         const btnDesfazer = log.backup ? `<button class="btn-undo" onclick="desfazerAcaoLog(${log.id})">↩️ Desfazer</button>` : "";
         item.innerHTML = `<div><div style="font-size:10px; color:#aaa;">${new Date(log.data).toLocaleString()}</div><div style="font-weight:bold; color:white;">${log.acao}</div><div style="color:#ddd; font-size:12px;">${log.detalhe}</div></div><div>${btnDesfazer}</div>`;
         listaLogs.appendChild(item);
     });
+}
+
+function desfazerAcaoLog(logId) {
+    const logIndex = logs.findIndex(l => l.id === logId);
+    if(logIndex === -1) return;
+    const log = logs[logIndex];
+    
+    if (!log.backup) { alert("Ação irreversível."); return; }
+    if (!confirm(`Desfazer: "${log.acao}"?`)) return;
+
+    if (log.relatedId) {
+        const relatedIndex = contas.findIndex(c => c.id === log.relatedId);
+        if (relatedIndex !== -1) contas.splice(relatedIndex, 1);
+    }
+
+    if (log.acao.includes("EXCLUÍDO")) {
+        contas.push(log.backup);
+    } else {
+        const contaIndex = contas.findIndex(c => c.id === log.backup.id);
+        if (contaIndex !== -1) contas[contaIndex] = log.backup;
+        else contas.push(log.backup);
+    }
+
+    logs.splice(logIndex, 1);
+    salvar();
+    abrirHistorico();
+    alert("Desfeito com sucesso! ↩️");
+}
+
+function compartilharLog() {
+    let texto = "📜 *Registro de Atividades*\n\n";
+    logs.forEach(l => { texto += `[${new Date(l.data).toLocaleDateString()}] ${l.acao}: ${l.detalhe}\n`; });
+    if (navigator.share) navigator.share({ title: 'Log', text: texto });
+    else { const el = document.createElement('textarea'); el.value = texto; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); alert("Log Copiado!"); }
 }
 
 function fecharHistoricoLogs() {
@@ -333,12 +334,6 @@ function limparLogs(tipo) {
         return true;
     });
     salvar(); abrirHistorico();
-}
-function compartilharLog() {
-    let texto = "📜 *Registro de Atividades*\n\n";
-    logs.forEach(l => { texto += `[${new Date(l.data).toLocaleDateString()}] ${l.acao}: ${l.detalhe}\n`; });
-    if (navigator.share) navigator.share({ title: 'Log', text: texto });
-    else { const el = document.createElement('textarea'); el.value = texto; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); alert("Log Copiado!"); }
 }
 
 /* ================= CRUD ================= */
@@ -388,7 +383,35 @@ function adicionarConta() {
   registrarLog("CRIADO", `Nova conta: ${nome} - R$ ${valor}`); salvar();
 }
 function copiarPix(i) { const c = contas[i]; if(c.codigoPix) navigator.clipboard.writeText(c.codigoPix).then(()=>alert("Copiado!")); }
-function baixarBackup() { const d = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({contas, logs})); const a = document.createElement('a'); a.href = d; a.download = "backup.json"; document.body.appendChild(a); a.click(); a.remove(); }
+
+/* ================= EXTRAS ================= */
+function baixarBackup() { 
+    const d = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({contas, logs})); 
+    const a = document.createElement('a'); a.href = d; a.download = "backup.json"; document.body.appendChild(a); a.click(); a.remove(); 
+}
+function lerArquivoBackup(input) { 
+    const file = input.files[0]; if(!file) return; 
+    const reader = new FileReader(); 
+    reader.onload = function(e) { 
+        try { 
+            const dados = JSON.parse(e.target.result); 
+            if (Array.isArray(dados)) {
+                if(confirm("Restaurar backup antigo?")) { 
+                    contas = dados; logs = []; 
+                    contas.forEach(c => { if(!c.id) c.id = Date.now() + Math.random(); });
+                    salvar(); alert("Backup antigo restaurado!"); location.reload(); 
+                } 
+            } else if (dados.contas) {
+                if(confirm("Restaurar backup completo?")) { 
+                    contas = dados.contas; logs = dados.logs || [];
+                    salvar(); alert("Backup restaurado!"); location.reload(); 
+                }
+            } else alert("Formato inválido.");
+        } catch(err) { alert("Erro ao ler."); } 
+    }; 
+    reader.readAsText(file); 
+}
+
 function abrirOpcoes() { document.getElementById("modalOpcoes").style.display = "flex"; }
 function fecharOpcoes() { document.getElementById("modalOpcoes").style.display = "none"; }
 function abrirCalculadora() { document.getElementById("modalCalc").style.display = "flex"; }
@@ -402,10 +425,11 @@ function calcAdd(v) { calcExpressao += v; document.getElementById("calcDisplay")
 function calcLimpar() { calcExpressao = ""; document.getElementById("calcDisplay").value = ""; }
 function calcCalcular() { try { document.getElementById("calcDisplay").value = eval(calcExpressao); } catch { alert("Erro"); } }
 function fecharAviso() { const av = document.getElementById("avisoSwipe"); if(av) av.remove(); }
-function limparTextoPdf(texto) { return texto.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim(); }
+
 document.addEventListener("DOMContentLoaded", () => {
    if(localStorage.getItem("modoPrivado") === "true") document.body.classList.add("modo-privado");
 });
+
 function desbloquear() {
   const pinInput = document.getElementById("pin");
   if (pinInput && pinInput.value !== PIN) { alert("PIN incorreto."); pinInput.value = ""; return; }
@@ -414,6 +438,7 @@ function desbloquear() {
   carregarPerfil();
   render();
 }
+
 function carregarPerfil() {
   const f = localStorage.getItem("fotoPerfil");
   const img = document.getElementById("fotoPerfil");
@@ -429,6 +454,7 @@ if(imgPerfil && inputUpload) {
       r.readAsDataURL(e.target.files[0]);
     };
 }
+
 function setFiltro(f, btn) {
   filtro = f;
   document.querySelectorAll(".filtros button").forEach(b => b.classList.remove("ativo"));
