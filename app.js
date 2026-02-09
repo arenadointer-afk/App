@@ -1,17 +1,21 @@
 const PIN = "2007";
 let contas = [];
+let logs = []; 
 let filtro = "todas"; 
 
-/* ================= INICIALIZAÇÃO SEGURA ================= */
+/* ================= INICIALIZAÇÃO ================= */
 try {
   const dadosLocais = localStorage.getItem("contas");
   if (dadosLocais) {
-    contas = JSON.parse(dadosLocais) || [];
+      contas = JSON.parse(dadosLocais) || [];
+      // Garante IDs únicos para o sistema de histórico
+      contas.forEach(c => { if(!c.id) c.id = Date.now() + Math.random(); });
   }
+  const logsLocais = localStorage.getItem("logs");
+  if (logsLocais) logs = JSON.parse(logsLocais) || [];
 } catch (error) {
-  console.error("Erro crítico ao carregar dados:", error);
-  alert("Erro nos dados salvos. O app iniciou com uma lista vazia para recuperar o acesso.");
-  contas = [];
+  console.error("Erro dados:", error);
+  contas = []; logs = [];
 }
 
 /* ================= UTILITÁRIOS VISUAIS ================= */
@@ -30,40 +34,6 @@ function getIcone(nome) {
   return "📄"; 
 }
 
-function togglePrivacidade() {
-    document.body.classList.toggle("modo-privado");
-    const isPrivado = document.body.classList.contains("modo-privado");
-    localStorage.setItem("modoPrivado", isPrivado);
-    const btn = document.getElementById("btnPrivacidade");
-    if(btn) btn.innerHTML = isPrivado ? "🙈" : "👁️";
-}
-
-function limparTextoPdf(texto) {
-    return texto.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
-}
-
-/* ================= SEGURANÇA EXTRA ================= */
-function confirmarSeguranca(acao) {
-  const n1 = Math.floor(Math.random() * 9) + 1;
-  const n2 = Math.floor(Math.random() * 9) + 1;
-  const soma = n1 + n2;
-  const resposta = prompt(`🔒 Segurança para ${acao}:\nQuanto é ${n1} + ${n2}?`);
-  if (resposta && parseInt(resposta) === soma) return true;
-  alert("🚫 Resposta incorreta. Ação cancelada.");
-  return false;
-}
-
-/* ================= SALVAMENTO & SISTEMA ================= */
-function salvar() {
-  try {
-    localStorage.setItem("contas", JSON.stringify(contas));
-    render();
-  } catch (e) {
-    alert("Erro ao salvar! Memória cheia?");
-    console.error(e);
-  }
-}
-
 const isoParaBR = d => { if(!d) return "--/--/----"; const [a,m,di] = d.split("-"); return `${di}/${m}/${a}`; };
 const brParaISO = d => { if(!d) return ""; const [di,m,a] = d.split("/"); return `${a}-${m}-${di}`; };
 const proximoMes = d => { const data = new Date(d); data.setMonth(data.getMonth() + 1); return data.toISOString().split("T")[0]; };
@@ -79,12 +49,363 @@ function infoVencimento(dataISO) {
   return { texto: `vence em: ${diff} dias`, classe: "normal" };
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-   if(localStorage.getItem("modoPrivado") === "true") {
-       document.body.classList.add("modo-privado");
-   }
-});
+function togglePrivacidade() {
+    document.body.classList.toggle("modo-privado");
+    localStorage.setItem("modoPrivado", document.body.classList.contains("modo-privado"));
+    const btn = document.getElementById("btnPrivacidade");
+    if(btn) btn.innerHTML = document.body.classList.contains("modo-privado") ? "🙈" : "👁️";
+}
 
+function toggleMenu(id) {
+    const menu = document.getElementById(`menu-${id}`);
+    const btn = document.getElementById(`btn-expand-${id}`);
+    if (menu.style.display === "flex") {
+        menu.style.display = "none";
+        btn.classList.remove("aberto");
+        btn.innerHTML = "🔻";
+    } else {
+        menu.style.display = "flex";
+        btn.classList.add("aberto");
+        btn.innerHTML = "🔺";
+    }
+}
+
+/* ================= SISTEMA (SALVAR, LOGS, SEGURANÇA) ================= */
+function confirmarSeguranca(acao) {
+  const n1 = Math.floor(Math.random() * 9) + 1;
+  const n2 = Math.floor(Math.random() * 9) + 1;
+  const soma = n1 + n2;
+  const resposta = prompt(`🔒 Segurança para ${acao}:\nQuanto é ${n1} + ${n2}?`);
+  return (resposta && parseInt(resposta) === soma);
+}
+
+function salvar() {
+  try {
+    localStorage.setItem("contas", JSON.stringify(contas));
+    localStorage.setItem("logs", JSON.stringify(logs));
+    const isLogAberto = document.getElementById("historicoLogs") && document.getElementById("historicoLogs").style.display === "block";
+    if(!isLogAberto) render(); 
+  } catch (e) { alert("Erro ao salvar."); }
+}
+
+function registrarLog(acao, detalhe, backupData = null, relatedId = null) {
+    const agora = new Date();
+    logs.unshift({
+        id: Date.now() + Math.random(),
+        data: agora.toISOString(),
+        acao: acao,
+        detalhe: detalhe,
+        backup: backupData,
+        relatedId: relatedId
+    });
+    if(logs.length > 50) logs.pop();
+    salvar();
+}
+
+function desfazerAcaoLog(logId) {
+    const logIndex = logs.findIndex(l => l.id === logId);
+    if(logIndex === -1) return;
+    const log = logs[logIndex];
+    
+    if (!log.backup) { alert("Esta ação não pode ser desfeita automaticamente."); return; }
+    if (!confirm(`Deseja desfazer: "${log.acao}"?`)) return;
+
+    // 1. Se a ação criou algo novo (pagamento parcial, recorrência), apaga esse item criado
+    if (log.relatedId) {
+        const relatedIndex = contas.findIndex(c => c.id === log.relatedId);
+        if (relatedIndex !== -1) contas.splice(relatedIndex, 1);
+    }
+
+    // 2. Restaura o estado anterior (backup) da conta original
+    if (log.acao.includes("EXCLUÍDO")) {
+        // Se foi excluída, traz ela de volta
+        contas.push(log.backup);
+    } else {
+        // Se foi editada/paga, acha ela pelo ID e reverte os dados
+        const contaIndex = contas.findIndex(c => c.id === log.backup.id);
+        if (contaIndex !== -1) {
+            contas[contaIndex] = log.backup;
+        } else {
+            // Caso raro onde a conta original também foi apagada manualmente depois
+            contas.push(log.backup);
+        }
+    }
+
+    logs.splice(logIndex, 1); // Remove o log da ação desfeita
+    salvar();
+    abrirHistorico(); // Atualiza a tela de histórico
+    alert("Ação desfeita com sucesso! ↩️");
+}
+
+/* ================= RENDERIZAÇÃO ================= */
+function render() {
+  const lista = document.getElementById("lista");
+  if(!lista) return;
+  lista.innerHTML = "";
+
+  if(!document.getElementById("btnPrivacidade")) {
+      const divFiltros = document.querySelector(".filtros");
+      if(divFiltros && !divFiltros.previousElementSibling.classList.contains("busca-container")) {
+          const divBusca = document.createElement("div");
+          divBusca.className = "busca-container";
+          divBusca.style.cssText = "display:flex; gap:10px; padding:0 15px; margin-top:10px;";
+          const iconeOlho = document.body.classList.contains("modo-privado") ? "🙈" : "👁️";
+          divBusca.innerHTML = `<input type="text" id="inputBusca" placeholder="🔍 Buscar..." onkeyup="render()" style="flex:1; padding:10px; border-radius:20px; border:1px solid #444; background:#222; color:white; text-align:center;"><button id="btnPrivacidade" onclick="togglePrivacidade()" style="background:none; border:none; font-size:22px; cursor:pointer;">${iconeOlho}</button>`;
+          divFiltros.parentNode.insertBefore(divBusca, divFiltros);
+      }
+  }
+
+  const termo = document.getElementById("inputBusca") ? document.getElementById("inputBusca").value.toLowerCase() : "";
+  const contasComIndex = contas.map((c, i) => ({...c, originalIndex: i}));
+  const grupos = {};
+  
+  [...contasComIndex].sort((a,b) => new Date(a.vencimento) - new Date(b.vencimento)).forEach(c => {
+      const k = mesAno(c.vencimento);
+      if(!grupos[k]) grupos[k] = [];
+      grupos[k].push(c);
+  });
+
+  if (Object.keys(grupos).length === 0) {
+      lista.innerHTML = `<div style="text-align:center; padding:30px; color:#666;">Nenhuma conta encontrada.</div>`;
+      return;
+  }
+
+  Object.keys(grupos).forEach(k => {
+    const todasDoMes = grupos[k];
+    let totalMes = 0, pagoMes = 0;
+    todasDoMes.forEach(c => { totalMes += c.valor; if(c.paga) pagoMes += c.valor; });
+    const faltaMes = totalMes - pagoMes;
+    let pct = totalMes > 0 ? (pagoMes / totalMes) * 100 : 0;
+
+    const contasVisiveis = todasDoMes.filter(c => {
+        if (termo) return c.nome.toLowerCase().includes(termo);
+        if (filtro === "pagas") return c.paga;
+        if (filtro === "todas") return !c.oculta; 
+        return true;
+    });
+
+    if (!termo && contasVisiveis.length === 0) return;
+
+    const bloco = document.createElement("div");
+    bloco.className = "mes-container";
+    bloco.innerHTML = `
+      <div class="cabecalho-mes"><h3>📅 ${k}</h3><div class="acoes-mes"><button onclick="compartilharMes('${k}')">📤</button><button onclick="baixarPdfMes('${k}')">📄</button></div></div>
+      <div class="resumo-mes">
+          <div class="resumo-item"><small>Total</small><strong class="texto-branco">R$ ${totalMes.toFixed(2)}</strong></div>
+          <div class="resumo-item"><small>Pago</small><strong class="texto-verde">R$ ${pagoMes.toFixed(2)}</strong></div>
+          <div class="resumo-item"><small>Falta</small><strong class="texto-vermelho">R$ ${faltaMes.toFixed(2)}</strong></div>
+          <div class="barra-container"><div class="barra-fundo"><div class="barra-preenchimento" style="width: ${pct}%"></div></div><div class="barra-texto">${pct.toFixed(0)}% Pago</div></div>
+      </div>
+    `;
+
+    contasVisiveis.forEach(c => {
+      const div = document.createElement("div");
+      const vencInfo = infoVencimento(c.vencimento);
+      const icone = getIcone(c.nome); 
+      let classes = "conta";
+      if (c.paga) classes += " verde";
+      else if (vencInfo.classe === "vencido") classes += " atrasada";
+      const badgeHtml = (!c.paga && vencInfo.classe === "vencido") ? `<span class="badge-vencido">VENCIDO</span>` : ``;
+      
+      let htmlParcelas = "";
+      if (c.recorrente && c.totalParcelas) {
+          const valorJaPago = (c.parcelaAtual - 1) * c.valor; 
+          htmlParcelas = `<div class="info-parcelas"><div>🔢 ${c.parcelaAtual}/${c.totalParcelas}</div><div>💰 Pago: R$ ${valorJaPago.toFixed(2)}</div></div>`;
+      } else if (c.recorrente) htmlParcelas = `<div class="info-parcelas"><div>🔄 Recorrente</div></div>`;
+
+      let obsHtml = c.obs ? `<div style="font-size:11px; color:#ff9800; margin-top:5px;">⚠️ ${c.obs}</div>` : "";
+      
+      let btnPrincipal = "";
+      if (!c.paga) btnPrincipal = `<button class="btn-pagar" onclick="iniciarPagamento(${c.originalIndex})">✅ PAGAR</button>`;
+      else btnPrincipal = `<button class="btn-reverter" onclick="desfazerPagamento(${c.originalIndex})">↩️ DESFAZER</button>`;
+
+      const menuId = `menu-${c.id}`; 
+      const btnExpandId = `btn-expand-${c.id}`;
+      const menuBotoes = `
+        <button onclick="copiarPix(${c.originalIndex})">📋 Copiar Pix</button>
+        <button onclick="adiarConta(${c.originalIndex})">⏩ Jogar p/ Mês Seguinte</button>
+        <button onclick="clonarConta(${c.originalIndex})">🧬 Clonar Conta</button>
+        ${!c.paga ? `<button onclick="ocultarConta(${c.originalIndex})">👁 Arquivar (Ocultar)</button>` : ''}
+        <button onclick="editarConta(${c.originalIndex})">✏️ Editar Dados</button>
+        <button onclick="gerarComprovanteIndividual(${c.originalIndex})">📄 Gerar PDF</button>
+        <button onclick="compartilharIndividual(${c.originalIndex})">📱 Mandar no Zap</button>
+        <button onclick="deletarConta(${c.originalIndex})" style="color:#ef5350; border-color:#ef5350;">🗑️ Excluir Definitivamente</button>
+      `;
+
+      div.className = classes;
+      div.innerHTML = `
+        ${badgeHtml}
+        <div style="font-size: 1.1em; margin-bottom: 5px;"><strong>${icone} ${c.nome}</strong></div>
+        <div style="font-size: 1.2em; font-weight: bold;">💰 R$ ${c.valor.toFixed(2)}</div>
+        <div style="margin-top: 5px;">📅 ${isoParaBR(c.vencimento)}</div>
+        ${obsHtml}
+        <small class="vencimento ${vencInfo.classe}">${c.paga ? "PAGO ✅" : vencInfo.texto}</small>
+        ${htmlParcelas}
+        <div class="acoes-principal">${btnPrincipal}<button id="${btnExpandId}" class="btn-expandir" onclick="toggleMenu('${c.id}')">🔻</button></div>
+        <div id="${menuId}" class="menu-secundario">${menuBotoes}</div>
+      `;
+      bloco.appendChild(div);
+    });
+    lista.appendChild(bloco);
+  });
+}
+/* ================= PAGAMENTO ================= */
+function iniciarPagamento(i) {
+    if (!confirmarSeguranca("PAGAR CONTA")) return;
+    const c = contas[i];
+    const tipo = prompt(`Valor: R$ ${c.valor.toFixed(2)}\n\n1 - TOTAL\n2 - PARCIAL`, "1");
+    const backup = JSON.parse(JSON.stringify(c)); // Cria backup para desfazer depois
+
+    if (tipo === "1") {
+        c.paga = true; c.oculta = true; c.dataPagamento = new Date().toISOString().split("T")[0];
+        let idNovaConta = null;
+        if (c.recorrente) {
+            let gerar = true; let novaParcela = (c.parcelaAtual || 1) + 1; let totalP = c.totalParcelas || 0;
+            if (typeof c.repeticoes === "number") { c.repeticoes--; if (c.repeticoes <= 0) gerar = false; }
+            if (totalP > 0 && novaParcela > totalP) gerar = false;
+            if (gerar) {
+                const nova = { ...c, id: Date.now()+Math.random(), paga: false, oculta: false, dataPagamento: null, obs: null, vencimento: proximoMes(c.vencimento), parcelaAtual: novaParcela, totalParcelas: totalP };
+                contas.push(nova); idNovaConta = nova.id;
+            }
+        }
+        registrarLog("PAGAMENTO TOTAL", `Pagou ${c.nome}`, backup, idNovaConta);
+        salvar(); alert("Pago! ✅");
+
+    } else if (tipo === "2") {
+        const valorPagoStr = prompt("Valor pago agora:", c.valor);
+        if(!valorPagoStr) return;
+        const valorPago = parseFloat(valorPagoStr.replace(",", "."));
+        if(isNaN(valorPago) || valorPago <= 0 || valorPago >= c.valor) { alert("Valor inválido."); return; }
+
+        const restante = c.valor - valorPago;
+        const mover = confirm(`Restam R$ ${restante.toFixed(2)}.\nJogar para o PRÓXIMO mês?\n\nOK = Sim\nCancelar = Não (Mantém neste)`);
+
+        const regPag = { ...c, id: Date.now()+Math.random(), nome: `${c.nome} (Parcial)`, valor: valorPago, paga: true, oculta: true, dataPagamento: new Date().toISOString().split("T")[0], obs: `Pagamento parcial. Restou R$ ${restante.toFixed(2)}` };
+        contas.push(regPag);
+
+        c.valor = restante; c.obs = `Restante parcial.`;
+        if (mover) { c.vencimento = proximoMes(c.vencimento); c.obs += ` Adiado.`; }
+        
+        // Registra log com ID do pagamento parcial para poder apagar depois se desfazer
+        registrarLog("PAGAMENTO PARCIAL", `${c.nome}: Pagou R$ ${valorPago}, restou R$ ${restante}`, backup, regPag.id);
+        salvar(); alert("Parcial registrado! ⚠️");
+    }
+}
+
+/* ================= HISTÓRICO GLOBAL (LOGS) ================= */
+function abrirHistorico() {
+    document.getElementById("lista").style.display = "none";
+    document.querySelector(".filtros").style.display = "none";
+    const mesContainer = document.querySelector(".mes-container"); if(mesContainer) mesContainer.style.display = "none";
+    
+    document.getElementById("historicoLogs").style.display = "block";
+    const listaLogs = document.getElementById("listaLogs");
+    listaLogs.innerHTML = "";
+    listaLogs.innerHTML += `<button onclick="compartilharLog()" style="width:100%; margin-bottom:15px; background:#0288d1; color:white; border:none; padding:10px; border-radius:8px;">📤 Compartilhar Relatório</button>`;
+
+    if(logs.length === 0) { listaLogs.innerHTML += "<p style='text-align:center; color:#888;'>Vazio.</p>"; return; }
+
+    logs.forEach(log => {
+        const item = document.createElement("div");
+        item.style.cssText = "background:#222; margin:5px 0; padding:10px; border-radius:8px; border-left:3px solid #7b2ff7; display:flex; justify-content:space-between; align-items:center;";
+        // Só mostra botão desfazer se tiver backup
+        const btnDesfazer = log.backup ? `<button class="btn-undo" onclick="desfazerAcaoLog(${log.id})">↩️ Desfazer</button>` : "";
+        item.innerHTML = `<div><div style="font-size:10px; color:#aaa;">${new Date(log.data).toLocaleString()}</div><div style="font-weight:bold; color:white;">${log.acao}</div><div style="color:#ddd; font-size:12px;">${log.detalhe}</div></div><div>${btnDesfazer}</div>`;
+        listaLogs.appendChild(item);
+    });
+}
+
+function fecharHistoricoLogs() {
+    document.getElementById("historicoLogs").style.display = "none";
+    document.getElementById("lista").style.display = "block";
+    document.querySelector(".filtros").style.display = "flex";
+    render(); 
+}
+function apagarLog(i) { if(confirm("Apagar registro?")) { logs.splice(i, 1); salvar(); abrirHistorico(); } }
+function limparLogs(tipo) {
+    if(!confirm("Limpar?")) return;
+    const agora = new Date();
+    if (tipo === "tudo") logs = [];
+    else logs = logs.filter(l => {
+        const d = new Date(l.data);
+        if (tipo === "dia") return d.toDateString() !== agora.toDateString(); 
+        if (tipo === "mes") return d.getMonth() !== agora.getMonth(); 
+        return true;
+    });
+    salvar(); abrirHistorico();
+}
+function compartilharLog() {
+    let texto = "📜 *Registro de Atividades*\n\n";
+    logs.forEach(l => { texto += `[${new Date(l.data).toLocaleDateString()}] ${l.acao}: ${l.detalhe}\n`; });
+    if (navigator.share) navigator.share({ title: 'Log', text: texto });
+    else { const el = document.createElement('textarea'); el.value = texto; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); alert("Log Copiado!"); }
+}
+
+/* ================= CRUD ================= */
+function adiarConta(i) {
+    if (!confirmarSeguranca("MOVER")) return;
+    const c = contas[i]; const backup = JSON.parse(JSON.stringify(c));
+    const novaData = prompt("Nova data:", isoParaBR(proximoMes(c.vencimento)));
+    if (novaData) { c.vencimento = brParaISO(novaData); registrarLog("ADIADO", `${c.nome} para ${novaData}`, backup); salvar(); }
+}
+function editarConta(i) {
+    if (!confirmarSeguranca("EDITAR")) return;
+    const c = contas[i]; const backup = JSON.parse(JSON.stringify(c));
+    const n = prompt("Nome:", c.nome); if(!n) return;
+    const v = prompt("Valor:", c.valor); const d = prompt("Data:", isoParaBR(c.vencimento));
+    if(n && v && d) { c.nome = n; c.valor = parseFloat(v.replace(",",".")); c.vencimento = brParaISO(d); registrarLog("EDITADO", `Alterou ${c.nome}`, backup); salvar(); }
+}
+function ocultarConta(i) { 
+    if(!confirmarSeguranca("ARQUIVAR")) return;
+    const backup = JSON.parse(JSON.stringify(contas[i]));
+    contas[i].oculta = true; registrarLog("ARQUIVADO", `Ocultou ${contas[i].nome}`, backup); salvar(); 
+}
+function deletarConta(i) {
+    if(confirmarSeguranca("EXCLUIR")) {
+        const backup = JSON.parse(JSON.stringify(contas[i]));
+        registrarLog("EXCLUÍDO", `Apagou ${contas[i].nome}`, backup);
+        contas.splice(i,1); salvar();
+    }
+}
+function desfazerPagamento(i) { 
+    if (!confirmarSeguranca("DESFAZER")) return; 
+    const backup = JSON.parse(JSON.stringify(contas[i]));
+    contas[i].paga = false; contas[i].dataPagamento = null; contas[i].oculta = false; 
+    registrarLog("REVERTEU PGTO", `Voltou ${contas[i].nome}`, backup); salvar(); 
+}
+function clonarConta(i) {
+    if(!confirm("Clonar?")) return;
+    const original = contas[i];
+    const copia = { ...original, id: Date.now()+Math.random(), nome: original.nome + " (Cópia)", paga: false, oculta: false, dataPagamento: null, recorrente: false };
+    contas.push(copia); registrarLog("CLONADO", `Clonou ${original.nome}`); salvar();
+}
+function adicionarConta() {
+  const nome = prompt("Nome:"); if (!nome) return;
+  const valorStr = prompt("Valor:");
+  const valor = parseFloat(valorStr.replace(",", "."));
+  const data = prompt("Vencimento (DD/MM/AAAA):"); 
+  contas.push({ id: Date.now()+Math.random(), nome, valor, vencimento: brParaISO(data), codigoPix: "", paga: false, oculta: false });
+  registrarLog("CRIADO", `Nova conta: ${nome} - R$ ${valor}`); salvar();
+}
+function copiarPix(i) { const c = contas[i]; if(c.codigoPix) navigator.clipboard.writeText(c.codigoPix).then(()=>alert("Copiado!")); }
+function baixarBackup() { const d = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({contas, logs})); const a = document.createElement('a'); a.href = d; a.download = "backup.json"; document.body.appendChild(a); a.click(); a.remove(); }
+function abrirOpcoes() { document.getElementById("modalOpcoes").style.display = "flex"; }
+function fecharOpcoes() { document.getElementById("modalOpcoes").style.display = "none"; }
+function abrirCalculadora() { document.getElementById("modalCalc").style.display = "flex"; }
+function fecharCalculadora() { document.getElementById("modalCalc").style.display = "none"; }
+function baixarPdfMes(mes) { if(!window.jspdf) { alert("Carregando PDF..."); return; } const { jsPDF } = window.jspdf; const pdf = new jsPDF(); let y = 20; pdf.setFontSize(18); pdf.text(`Relatório: ${mes}`, 105, y, {align:'center'}); y += 15; pdf.setFontSize(10); const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes && (filtro === "todas" || (filtro === "pagas" && c.paga))); contasDoMes.forEach(c => { const nomeLimpo = limparTextoPdf(c.nome); pdf.text(nomeLimpo.substring(0, 30), 12, y); pdf.text(isoParaBR(c.vencimento), 80, y); pdf.text(`R$ ${c.valor.toFixed(2)}`, 175, y); y += 8; }); pdf.save(`extrato.pdf`); }
+function compartilharMes(mes) { let texto = `📅 ${mes}\n`; const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes); contasDoMes.forEach(c => { texto += `${c.paga?'✅':'⭕'} ${c.nome}: R$ ${c.valor.toFixed(2)}\n`; }); if (navigator.share) navigator.share({ title: 'Contas', text: texto }); else alert("Use um celular para compartilhar."); }
+function compartilharIndividual(i) { const c = contas[i]; const t = `Conta: ${c.nome}\nValor: R$ ${c.valor.toFixed(2)}\nVencimento: ${isoParaBR(c.vencimento)}`; if (navigator.share) navigator.share({ title: 'Conta', text: t }); }
+function gerarComprovanteIndividual(i) { alert("Requer jsPDF completo."); }
+let calcExpressao = "";
+function calcAdd(v) { calcExpressao += v; document.getElementById("calcDisplay").value = calcExpressao; }
+function calcLimpar() { calcExpressao = ""; document.getElementById("calcDisplay").value = ""; }
+function calcCalcular() { try { document.getElementById("calcDisplay").value = eval(calcExpressao); } catch { alert("Erro"); } }
+function fecharAviso() { const av = document.getElementById("avisoSwipe"); if(av) av.remove(); }
+function limparTextoPdf(texto) { return texto.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim(); }
+document.addEventListener("DOMContentLoaded", () => {
+   if(localStorage.getItem("modoPrivado") === "true") document.body.classList.add("modo-privado");
+});
 function desbloquear() {
   const pinInput = document.getElementById("pin");
   if (pinInput && pinInput.value !== PIN) { alert("PIN incorreto."); pinInput.value = ""; return; }
@@ -93,7 +414,6 @@ function desbloquear() {
   carregarPerfil();
   render();
 }
-
 function carregarPerfil() {
   const f = localStorage.getItem("fotoPerfil");
   const img = document.getElementById("fotoPerfil");
@@ -109,334 +429,9 @@ if(imgPerfil && inputUpload) {
       r.readAsDataURL(e.target.files[0]);
     };
 }
-
 function setFiltro(f, btn) {
   filtro = f;
   document.querySelectorAll(".filtros button").forEach(b => b.classList.remove("ativo"));
   btn.classList.add("ativo");
   render();
 }
-
-/* ================= RENDERIZAÇÃO PRINCIPAL ================= */
-function render() {
-  const lista = document.getElementById("lista");
-  if(!lista) return;
-  lista.innerHTML = "";
-
-  if(!document.getElementById("btnPrivacidade")) {
-      const divFiltros = document.querySelector(".filtros");
-      if(divFiltros && !divFiltros.previousElementSibling.classList.contains("busca-container")) {
-          const divBusca = document.createElement("div");
-          divBusca.className = "busca-container";
-          divBusca.style.cssText = "display:flex; gap:10px; padding:0 15px; margin-top:10px;";
-          const iconeOlho = document.body.classList.contains("modo-privado") ? "🙈" : "👁️";
-          divBusca.innerHTML = `
-            <input type="text" id="inputBusca" placeholder="🔍 Buscar (ex: Internet)..." onkeyup="render()" 
-            style="flex:1; padding: 10px; border-radius: 20px; border: 1px solid #444; background: #222; color: white; text-align: center;">
-            <button id="btnPrivacidade" onclick="togglePrivacidade()" style="background:none; border:none; font-size:22px; cursor:pointer;">${iconeOlho}</button>
-          `;
-          divFiltros.parentNode.insertBefore(divBusca, divFiltros);
-      }
-  }
-
-  const termo = document.getElementById("inputBusca") ? document.getElementById("inputBusca").value.toLowerCase() : "";
-
-  // Correção para botões funcionarem com filtros: mapeia índice original
-  const contasComIndex = contas.map((c, i) => ({...c, originalIndex: i}));
-
-  const grupos = {};
-  const contasOrdenadas = [...contasComIndex].sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
-
-  contasOrdenadas.forEach(c => {
-      const k = mesAno(c.vencimento);
-      if (!grupos[k]) grupos[k] = [];
-      grupos[k].push(c);
-  });
-
-  if (Object.keys(grupos).length === 0) {
-      lista.innerHTML = `<div style="text-align:center; padding:30px; color:#666;">Nenhuma conta encontrada.</div>`;
-      return;
-  }
-
-  Object.keys(grupos).forEach(k => {
-    const todasDoMes = grupos[k];
-    
-    // Cálculo financeiro usa TUDO do mês (independente se está oculto ou pago)
-    let totalMes = 0, pagoMes = 0;
-    todasDoMes.forEach(c => {
-         totalMes += c.valor;        
-         if(c.paga) pagoMes += c.valor; 
-    });
-    const faltaMes = totalMes - pagoMes;
-    let pct = totalMes > 0 ? (pagoMes / totalMes) * 100 : 0;
-
-    // Filtro Visual (O que aparece na lista)
-    const contasVisiveis = todasDoMes.filter(c => {
-        if (termo) return c.nome.toLowerCase().includes(termo);
-        if (filtro === "pagas") return c.paga;
-        if (filtro === "todas") return !c.oculta; // Oculta as arquivadas da lista
-        return true;
-    });
-
-    if (!termo && contasVisiveis.length === 0) return;
-
-    const bloco = document.createElement("div");
-    bloco.className = "mes-container";
-
-    bloco.innerHTML = `
-      <div class="cabecalho-mes">
-          <h3>📅 ${k}</h3>
-          <div class="acoes-mes">
-            <button onclick="compartilharMes('${k}')">📤</button>
-            <button onclick="baixarPdfMes('${k}')">📄</button>
-          </div>
-      </div>
-      <div class="resumo-mes">
-          <div class="resumo-item"><small>Total</small><strong class="texto-branco">R$ ${totalMes.toFixed(2)}</strong></div>
-          <div class="resumo-item"><small>Pago</small><strong class="texto-verde">R$ ${pagoMes.toFixed(2)}</strong></div>
-          <div class="resumo-item"><small>Falta</small><strong class="texto-vermelho">R$ ${faltaMes.toFixed(2)}</strong></div>
-          
-          <div class="barra-container">
-            <div class="barra-fundo">
-                <div class="barra-preenchimento" style="width: ${pct}%"></div>
-            </div>
-            <div class="barra-texto">${pct.toFixed(0)}% Pago</div>
-          </div>
-      </div>
-    `;
-
-    contasVisiveis.forEach(c => {
-      const div = document.createElement("div");
-      const vencInfo = infoVencimento(c.vencimento);
-      const icone = getIcone(c.nome); 
-
-      let classes = "conta";
-      if (c.paga) classes += " verde";
-      else if (vencInfo.classe === "vencido") classes += " atrasada";
-
-      const badgeHtml = (!c.paga && vencInfo.classe === "vencido") ? `<span class="badge-vencido">VENCIDO</span>` : ``;
-      
-      let htmlParcelas = "";
-      if (c.recorrente && c.totalParcelas) {
-          const valorJaPago = (c.parcelaAtual - 1) * c.valor; 
-          htmlParcelas = `<div class="info-parcelas"><div>🔢 ${c.parcelaAtual}/${c.totalParcelas}</div><div>💰 Pago: R$ ${valorJaPago.toFixed(2)}</div></div>`;
-      } else if (c.recorrente) {
-           htmlParcelas = `<div class="info-parcelas"><div>🔄 Recorrente</div></div>`;
-      }
-
-      let btnPix = "";
-      if(c.codigoPix && c.codigoPix.length > 5) {
-         // Usa originalIndex para garantir que copie o Pix certo
-         btnPix = `<button onclick="copiarPix(${c.originalIndex})" style="background:#4caf50; color:white;">Pix</button>`;
-      }
-
-      let acoesHtml = "";
-      // Usa originalIndex para garantir que a ação seja na conta certa
-      if (termo) {
-          acoesHtml = `
-            <button onclick="gerarComprovanteIndividual(${c.originalIndex})" title="Recibo PDF" style="background:#f39c12;">📄 PDF</button>
-            <button onclick="compartilharIndividual(${c.originalIndex})" title="Enviar Whatsapp" style="background:#25D366;">📱 Zap</button>
-            <button onclick="editarConta(${c.originalIndex})">✏️</button>
-          `;
-      } else {
-          let btnAdiar = !c.paga ? `<button onclick="adiarConta(${c.originalIndex})" style="background:#0288d1;" title="Mover">⏩</button>` : "";
-          let btnPagar = !c.paga ? `<button onclick="marcarPaga(${c.originalIndex})">✅ Pagar</button>` : `<button onclick="desfazerPagamento(${c.originalIndex})" style="background:#e67e22;">↩️</button>`;
-          let btnArq = `<button onclick="ocultarConta(${c.originalIndex})">👁 Arq</button>`;
-          
-          acoesHtml = `
-            ${btnPagar}
-            ${btnPix}
-            ${btnAdiar}
-            <button onclick="clonarConta(${c.originalIndex})" title="Clonar">🧬</button> 
-            ${btnArq}
-            <button onclick="editarConta(${c.originalIndex})">✏️</button>
-            <button onclick="deletarConta(${c.originalIndex})">🗑️</button>
-          `;
-      }
-      div.className = classes;
-      div.innerHTML = `
-        ${badgeHtml}
-        <div style="font-size: 1.1em; margin-bottom: 5px;"><strong>${icone} ${c.nome}</strong></div>
-        <div style="font-size: 1.2em; font-weight: bold;">💰 R$ ${c.valor.toFixed(2)}</div>
-        <div style="margin-top: 5px;">📅 ${isoParaBR(c.vencimento)}</div>
-        <small class="vencimento ${vencInfo.classe}">${c.paga ? "PAGO ✅" : vencInfo.texto}</small>
-        ${htmlParcelas}
-        <div class="acoes">
-          ${acoesHtml}
-        </div>
-      `;
-      if(!termo) {
-          let startX = 0;
-          div.addEventListener("touchstart", e => startX = e.touches[0].clientX);
-          div.addEventListener("touchend", e => {
-            const dx = e.changedTouches[0].clientX - startX;
-            if (dx > 80) ocultarConta(c.originalIndex);
-            if (dx < -80 && !c.paga) marcarPaga(c.originalIndex);
-          });
-      }
-      bloco.appendChild(div);
-    });
-    lista.appendChild(bloco);
-  });
-}
-
-/* ================= COMPARTILHAMENTO E PDF ================= */
-function compartilharMes(mes) {
-  let texto = `📅 *Resumo de Contas - ${mes}*\n\n`;
-  let total = 0, pago = 0;
-  const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes).sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
-  if (contasDoMes.length === 0) { alert("Nada."); return; }
-  contasDoMes.forEach(c => {
-    if(filtro === "pagas" && !c.paga) return; 
-    total += c.valor;
-    if (c.paga) { pago += c.valor; texto += `✅ ${c.nome}: R$ ${c.valor.toFixed(2)}\n`; } 
-    else {
-        const diaMes = isoParaBR(c.vencimento).substring(0, 5); 
-        texto += `⭕ ${c.nome} (Vence em ${diaMes}): R$ ${c.valor.toFixed(2)}\n`;
-    }
-  });
-  texto += `\n--------------------\n💰 Total: R$ ${total.toFixed(2)}\n✅ Pago: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${(total - pago).toFixed(2)}`;
-  compartilharTexto(texto);
-}
-
-function baixarPdfMes(mes) {
-  if(!window.jspdf) { alert("Carregando PDF..."); return; }
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF();
-  let y = 20;
-  pdf.setFontSize(18); pdf.text(`Relatório Financeiro: ${mes}`, 105, y, {align:'center'}); y += 15;
-  pdf.setFontSize(10);
-  pdf.setFillColor(200, 200, 200); pdf.rect(10, y, 190, 8, 'F');
-  pdf.font = "helvetica"; pdf.setFont(undefined, 'bold');
-  pdf.text("Conta", 12, y+5); pdf.text("Vencimento", 80, y+5); pdf.text("Pagamento", 110, y+5); pdf.text("Status", 145, y+5); pdf.text("Valor", 175, y+5);
-  pdf.setFont(undefined, 'normal'); y += 10;
-  let total = 0; let totalPago = 0;
-  const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes && (filtro === "todas" || (filtro === "pagas" && c.paga)));
-  contasDoMes.forEach(c => {
-      total += c.valor; if(c.paga) totalPago += c.valor;
-      const nomeLimpo = limparTextoPdf(c.nome);
-      const dataPag = c.dataPagamento ? isoParaBR(c.dataPagamento) : "-";
-      const status = c.paga ? "PAGO" : "ABERTO";
-      pdf.text(nomeLimpo.substring(0, 30), 12, y);
-      pdf.text(isoParaBR(c.vencimento), 80, y);
-      pdf.text(dataPag, 110, y);
-      pdf.text(status, 145, y);
-      pdf.text(`R$ ${c.valor.toFixed(2)}`, 175, y);
-      pdf.setDrawColor(220); pdf.line(10, y+2, 200, y+2); y += 8;
-  });
-  y += 5; pdf.setFont(undefined, 'bold');
-  pdf.text(`TOTAL PREVISTO: R$ ${total.toFixed(2)}`, 10, y);
-  pdf.text(`TOTAL PAGO: R$ ${totalPago.toFixed(2)}`, 110, y);
-  pdf.save(`extrato_${mes.replace('/','-')}.pdf`);
-}
-
-function compartilharIndividual(i) {
-    const c = contas[i];
-    const status = c.paga ? "✅ PAGO" : "⭕ PENDENTE";
-    const dataPag = c.paga ? `\n📅 Pago em: ${isoParaBR(c.dataPagamento)}` : "";
-    let texto = `🧾 *Comprovante*\n\n📌 Conta: ${c.nome}\n💰 Valor: R$ ${c.valor.toFixed(2)}\n🗓 Vencimento: ${isoParaBR(c.vencimento)}${dataPag}\n📊 Situação: ${status}`;
-    compartilharTexto(texto);
-}
-
-function gerarComprovanteIndividual(i) {
-    if(!window.jspdf) { alert("Erro PDF"); return; }
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF();
-    const c = contas[i];
-    pdf.setFontSize(22); pdf.text("Recibo de Conta", 105, 30, {align: "center"});
-    pdf.setLineWidth(1); pdf.line(20, 40, 190, 40);
-    pdf.setFontSize(14); let y = 60;
-    pdf.text(`Conta: ${limparTextoPdf(c.nome)}`, 20, y); y+=15;
-    pdf.text(`Valor: R$ ${c.valor.toFixed(2)}`, 20, y); y+=15;
-    pdf.text(`Vencimento: ${isoParaBR(c.vencimento)}`, 20, y); y+=15;
-    if(c.paga) { pdf.setTextColor(0, 150, 0); pdf.text(`Status: PAGO`, 20, y); y+=10; pdf.setTextColor(0, 0, 0); pdf.setFontSize(10); pdf.text(`Data Pagamento: ${isoParaBR(c.dataPagamento)}`, 20, y); } 
-    else { pdf.setTextColor(200, 0, 0); pdf.text(`Status: PENDENTE`, 20, y); }
-    pdf.setLineWidth(1); pdf.line(20, 100, 190, 100);
-    pdf.save(`recibo_${limparTextoPdf(c.nome)}.pdf`);
-}
-
-function compartilharTexto(texto) {
-    if (navigator.share) navigator.share({ title: 'Minhas Contas', text: texto }).catch(console.error);
-    else { const el = document.createElement('textarea'); el.value = texto; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); alert("Copiado!"); }
-}
-
-/* ================= AÇÕES E CRUD ================= */
-function adiarConta(i) {
-    if (!confirmarSeguranca("MOVER CONTA")) return;
-    const c = contas[i];
-    const dataAtual = new Date(c.vencimento); dataAtual.setMonth(dataAtual.getMonth() + 1);
-    const sugestao = dataAtual.toISOString().split('T')[0];
-    const novaData = prompt(`Para qual data deseja mover "${c.nome}"?`, isoParaBR(sugestao));
-    if (novaData) { c.vencimento = brParaISO(novaData); salvar(); alert(`Conta movida!`); }
-}
-function clonarConta(i) {
-    if(!confirm("Clonar esta conta?")) return;
-    const original = contas[i];
-    const copia = { ...original, nome: original.nome + " (Cópia)", paga: false, oculta: false, dataPagamento: null, recorrente: false, parcelaAtual: null, totalParcelas: null };
-    contas.push(copia); salvar();
-}
-function marcarPaga(i) {
-  if (!confirmarSeguranca("PAGAR")) return;
-  const c = contas[i];
-  c.paga = true; c.oculta = true; c.dataPagamento = new Date().toISOString().split("T")[0];
-  if (c.recorrente) {
-    let gerar = true; let novaParcela = (c.parcelaAtual || 1) + 1; let totalP = c.totalParcelas || 0;
-    if (typeof c.repeticoes === "number") { c.repeticoes--; if (c.repeticoes <= 0) gerar = false; }
-    if (totalP > 0 && novaParcela > totalP) gerar = false;
-    if (gerar) contas.push({ ...c, paga: false, oculta: false, dataPagamento: null, vencimento: proximoMes(c.vencimento), parcelaAtual: novaParcela, totalParcelas: totalP });
-  }
-  salvar();
-}
-function ocultarConta(i) { if (!confirmarSeguranca("ARQUIVAR")) return; contas[i].oculta = true; salvar(); }
-function desarquivarConta(i) { if(confirm("Desarquivar?")) { contas[i].oculta = false; salvar(); } }
-function desfazerPagamento(i) { if (!confirmarSeguranca("DESFAZER")) return; contas[i].paga = false; contas[i].dataPagamento = null; salvar(); }
-
-function adicionarConta() {
-  const nome = prompt("Nome:"); if (!nome) return;
-  const valorStr = prompt("Valor:"); if (!valorStr) return;
-  const valor = parseFloat(valorStr.replace(",", "."));
-  const data = prompt("Vencimento (DD/MM/AAAA):"); if (!data) return;
-  const codigoPix = prompt("Pix (Opcional):");
-  let recorrente = confirm("Recorrente?");
-  let repeticoes = null, totalParcelas = 0;
-  if (recorrente) { const r = prompt("Parcelas? (0 p/ infinito)"); const n = Number(r); if (n > 0) { repeticoes = n; totalParcelas = n; } }
-  contas.push({ nome, valor, vencimento: brParaISO(data), codigoPix: codigoPix || "", paga: false, recorrente, repeticoes, totalParcelas: totalParcelas > 0 ? totalParcelas : null, parcelaAtual: recorrente ? 1 : null, oculta: false, dataPagamento: null });
-  salvar();
-}
-
-function editarConta(i) {
-  if (!confirmarSeguranca("EDITAR")) return;
-  const c = contas[i];
-  const novoNome = prompt("Nome:", c.nome); if (novoNome === null) return; 
-  const novoValorStr = prompt("Valor:", c.valor); if (novoValorStr === null) return;
-  const novoValor = parseFloat(novoValorStr.replace(",", "."));
-  const novaData = prompt("Data:", isoParaBR(c.vencimento)); if (novaData === null) return;
-  const novoPix = prompt("Pix:", c.codigoPix || "");
-  const isRecorrente = confirm("Recorrente?");
-  let novaParcelaAtual = null; let novoTotalParcelas = null;
-  if (isRecorrente) {
-      const pAtual = prompt("Parcela Atual?", c.parcelaAtual || 1); novaParcelaAtual = pAtual ? parseInt(pAtual) : 1;
-      const pTotal = prompt("Total Parcelas?", c.totalParcelas || ""); novoTotalParcelas = (pTotal && parseInt(pTotal) > 0) ? parseInt(pTotal) : null;
-  }
-  if (!novoNome || isNaN(novoValor) || !novaData) { alert("Inválido."); return; }
-  c.nome = novoNome; c.valor = novoValor; c.vencimento = brParaISO(novaData);
-  c.codigoPix = novoPix || ""; c.recorrente = isRecorrente; c.parcelaAtual = novaParcelaAtual; c.totalParcelas = novoTotalParcelas;
-  salvar();
-}
-
-function deletarConta(i) { if (confirmarSeguranca("EXCLUIR")) { contas.splice(i,1); salvar(); } }
-function copiarPix(i) { const codigo = contas[i].codigoPix; if(!codigo) return; navigator.clipboard.writeText(codigo).then(() => alert("Copiado!")); }
-function abrirHistorico() { const lista = document.getElementById("lista"); lista.setAttribute("data-mode", "historico"); lista.innerHTML = `<div style="padding: 10px;"><button style="width:100%; padding:12px; background:#333; color:white; border:none; border-radius:8px; font-weight:bold; font-size:14px;" onclick="render()">⬅ Voltar para Início</button></div><h2 style="text-align:center; margin-bottom:20px;">📜 Histórico</h2><p style="text-align:center; color:#666;">Use a aba 'Pagas' ou a Busca para ver contas antigas.</p>`; }
-
-/* ================= EXTRAS ================= */
-function abrirOpcoes() { document.getElementById("modalOpcoes").style.display = "flex"; }
-function fecharOpcoes() { document.getElementById("modalOpcoes").style.display = "none"; }
-function baixarBackup() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(contas)); const node = document.createElement('a'); node.setAttribute("href", dataStr); node.setAttribute("download", `backup_${new Date().toISOString().slice(0,10)}.json`); document.body.appendChild(node); node.click(); node.remove(); }
-function lerArquivoBackup(input) { const file = input.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const dados = JSON.parse(e.target.result); if(Array.isArray(dados)) { if(confirm("Restaurar?")) { contas = dados; salvar(); alert("OK! 🔄"); location.reload(); } } } catch(err) { alert("Erro."); } }; reader.readAsText(file); }
-let calcExpressao = "";
-function abrirCalculadora() { document.getElementById("modalCalc").style.display = "flex"; }
-function fecharCalculadora() { document.getElementById("modalCalc").style.display = "none"; }
-function calcAdd(v) { calcExpressao += v; document.getElementById("calcDisplay").value = calcExpressao; }
-function calcLimpar() { calcExpressao = ""; document.getElementById("calcDisplay").value = ""; }
-function calcCalcular() { try { document.getElementById("calcDisplay").value = Function('"use strict";return (' + calcExpressao + ')')(); calcExpressao = document.getElementById("calcDisplay").value; } catch { alert("Erro"); calcLimpar(); } }
-function fecharAviso() { const av = document.getElementById("avisoSwipe"); if(av) av.remove(); }
