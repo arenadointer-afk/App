@@ -1,4 +1,4 @@
-const PIN = "1909";
+const PIN = "2007";
 let contas = [];
 let logs = []; 
 let filtro = "todas"; 
@@ -17,7 +17,7 @@ try {
   contas = []; logs = [];
 }
 
-/* ================= UTILITÁRIOS VISUAIS ================= */
+/* ================= UTILITÁRIOS ================= */
 function getIcone(nome) {
   const n = nome.toLowerCase();
   if (n.includes("luz") || n.includes("energia") || n.includes("cemig") || n.includes("enel")) return "💡";
@@ -69,7 +69,7 @@ function toggleMenu(id) {
     }
 }
 
-/* ================= SISTEMA (SALVAR/LOGS) ================= */
+/* ================= SISTEMA ================= */
 function confirmarSeguranca(acao) {
   const n1 = Math.floor(Math.random() * 9) + 1;
   const n2 = Math.floor(Math.random() * 9) + 1;
@@ -89,14 +89,7 @@ function salvar() {
 
 function registrarLog(acao, detalhe, backupData = null, relatedId = null) {
     const agora = new Date();
-    logs.unshift({
-        id: Date.now() + Math.random(),
-        data: agora.toISOString(),
-        acao: acao,
-        detalhe: detalhe,
-        backup: backupData,
-        relatedId: relatedId
-    });
+    logs.unshift({ id: Date.now()+Math.random(), data: agora.toISOString(), acao, detalhe, backup: backupData, relatedId });
     if(logs.length > 50) logs.pop();
     salvar();
 }
@@ -112,7 +105,6 @@ function desfazerAcaoLog(logId) {
         const relatedIndex = contas.findIndex(c => c.id === log.relatedId);
         if (relatedIndex !== -1) contas.splice(relatedIndex, 1);
     }
-
     if (log.acao.includes("EXCLUÍDO")) {
         contas.push(log.backup);
     } else {
@@ -285,7 +277,7 @@ function abrirHistorico() {
     document.getElementById("historicoLogs").style.display = "block";
     const listaLogs = document.getElementById("listaLogs");
     listaLogs.innerHTML = "";
-    listaLogs.innerHTML += `<button onclick="compartilharLog()" style="width:100%; margin-bottom:15px; background:#0288d1; color:white; border:none; padding:10px; border-radius:8px;">📤 Compartilhar Relatório</button>`;
+    listaLogs.innerHTML += `<button onclick="compartilharLog()" style="width:100%; margin-bottom:15px; background:#0288d1; color:white; border:none; padding:10px; border-radius:8px;">📤 Compartilhar Relatório de Logs</button>`;
 
     if(logs.length === 0) { listaLogs.innerHTML += "<p style='text-align:center; color:#888;'>Vazio.</p>"; return; }
 
@@ -299,10 +291,9 @@ function abrirHistorico() {
 }
 
 function compartilharLog() {
-    let texto = "📜 *Registro de Atividades*\n\n";
+    let texto = "📜 *Log de Atividades*\n\n";
     logs.forEach(l => { texto += `[${new Date(l.data).toLocaleDateString()}] ${l.acao}: ${l.detalhe}\n`; });
-    if (navigator.share) navigator.share({ title: 'Log', text: texto });
-    else { const el = document.createElement('textarea'); el.value = texto; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); alert("Log Copiado!"); }
+    enviarWhatsapp(texto);
 }
 
 function fecharHistoricoLogs() {
@@ -325,7 +316,7 @@ function limparLogs(tipo) {
     salvar(); abrirHistorico();
 }
 
-/* ================= CRUD COMPLETO (RESTAURADO) ================= */
+/* ================= CRUD ================= */
 function adicionarConta() {
   const nome = prompt("Nome:"); if (!nome) return;
   const valorStr = prompt("Valor:"); if (!valorStr) return;
@@ -333,37 +324,22 @@ function adicionarConta() {
   const data = prompt("Vencimento (DD/MM/AAAA):"); if (!data) return;
   const codigoPix = prompt("Pix (Opcional):");
   
-  let recorrente = confirm("Recorrente?");
+  let recorrente = confirm("Recorrente (Mensal)?");
   let repeticoes = null, totalParcelas = 0;
   if (recorrente) { 
-      const r = prompt("Parcelas? (0 p/ infinito)"); 
+      const r = prompt("Quantas parcelas? (Digite 0 para infinito)"); 
       const n = Number(r); 
       if (n > 0) { repeticoes = n; totalParcelas = n; } 
   }
 
-  contas.push({ 
-      id: Date.now()+Math.random(), 
-      nome, 
-      valor, 
-      vencimento: brParaISO(data), 
-      codigoPix: codigoPix || "", 
-      paga: false, 
-      oculta: false,
-      recorrente,
-      repeticoes,
-      totalParcelas,
-      parcelaAtual: recorrente ? 1 : null,
-      dataPagamento: null 
-  });
-  
+  contas.push({ id: Date.now()+Math.random(), nome, valor, vencimento: brParaISO(data), codigoPix: codigoPix || "", paga: false, oculta: false, recorrente, repeticoes, totalParcelas, parcelaAtual: recorrente ? 1 : null, dataPagamento: null });
   registrarLog("CRIADO", `Nova conta: ${nome} - R$ ${valor}`);
   salvar();
 }
 
 function editarConta(i) {
     if (!confirmarSeguranca("EDITAR")) return;
-    const c = contas[i]; 
-    const backup = JSON.parse(JSON.stringify(c));
+    const c = contas[i]; const backup = JSON.parse(JSON.stringify(c));
     
     const novoNome = prompt("Nome:", c.nome); if (novoNome === null) return; 
     const novoValorStr = prompt("Valor:", c.valor); if (novoValorStr === null) return;
@@ -379,7 +355,6 @@ function editarConta(i) {
     }
 
     if (!novoNome || isNaN(novoValor) || !novaData) { alert("Inválido."); return; }
-    
     c.nome = novoNome; c.valor = novoValor; c.vencimento = brParaISO(novaData);
     c.codigoPix = novoPix || ""; c.recorrente = isRecorrente; c.parcelaAtual = novaParcelaAtual; c.totalParcelas = novoTotalParcelas;
     
@@ -419,7 +394,7 @@ function clonarConta(i) {
 }
 function copiarPix(i) { const c = contas[i]; if(c.codigoPix) navigator.clipboard.writeText(c.codigoPix).then(()=>alert("Copiado!")); }
 
-/* ================= EXTRAS ================= */
+/* ================= EXTRAS (PDF PRO, BACKUP, WHATSAPP) ================= */
 function baixarBackup() { 
     const d = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({contas, logs})); 
     const a = document.createElement('a'); a.href = d; a.download = "backup.json"; document.body.appendChild(a); a.click(); a.remove(); 
@@ -447,15 +422,148 @@ function lerArquivoBackup(input) {
     reader.readAsText(file); 
 }
 
+// === COMPARTILHAMENTO INTELIGENTE (WHATSAPP DIRETO) ===
+function enviarWhatsapp(texto) {
+    // Tenta API nativa primeiro, se falhar, abre link do zap
+    if (navigator.share) {
+        navigator.share({ title: 'Minhas Contas', text: texto }).catch(() => {
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
+        });
+    } else {
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
+    }
+}
+
+function compartilharMes(mes) {
+  let texto = `📅 *Resumo - ${mes}*\n\n`;
+  const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes).sort((a,b) => new Date(a.vencimento) - new Date(b.vencimento));
+  let total = 0, pago = 0;
+
+  contasDoMes.forEach(c => {
+    if(filtro === "pagas" && !c.paga) return;
+    total += c.valor;
+    if(c.paga) {
+        pago += c.valor;
+        texto += `✅ ${c.nome}: R$ ${c.valor.toFixed(2)}\n`;
+    } else {
+        const [ano, m, dia] = c.vencimento.split('-');
+        texto += `⭕ ${c.nome} (${dia}/${m}): R$ ${c.valor.toFixed(2)}\n`;
+    }
+  });
+
+  const falta = total - pago;
+  texto += `\n--------------------\n💰 Total: R$ ${total.toFixed(2)}\n✅ Pago: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${falta.toFixed(2)}`;
+  
+  enviarWhatsapp(texto);
+}
+
+function compartilharIndividual(i) { 
+    const c = contas[i]; 
+    const t = `🧾 *Conta*\n\n📌 ${c.nome}\n💰 R$ ${c.valor.toFixed(2)}\n🗓 Vencimento: ${isoParaBR(c.vencimento)}\n${c.paga ? '✅ PAGO' : '⭕ PENDENTE'}`; 
+    enviarWhatsapp(t); 
+}
+
+// === PDF PROFISSIONAL (NOTA FISCAL) ===
+function baixarPdfMes(mes) {
+    if(!window.jspdf) { alert("Erro biblioteca PDF."); return; }
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF();
+    const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes && (filtro === "todas" || (filtro === "pagas" && c.paga)));
+    
+    // Configurações
+    pdf.setFont("courier");
+    let y = 15;
+
+    // Cabeçalho
+    pdf.setLineWidth(0.5);
+    pdf.rect(10, 10, 190, 25); // Box Topo
+    pdf.setFontSize(16); pdf.setFont(undefined, 'bold');
+    pdf.text("DEMONSTRATIVO FINANCEIRO", 105, 18, {align:'center'});
+    pdf.setFontSize(10); pdf.setFont(undefined, 'normal');
+    pdf.text(`PERÍODO: ${mes}`, 105, 25, {align:'center'});
+    pdf.text(`EMITIDO EM: ${new Date().toLocaleDateString()}`, 105, 30, {align:'center'});
+
+    // Tabela com AutoTable
+    let dadosTabela = [];
+    let total = 0, pago = 0;
+    contasDoMes.forEach(c => {
+        total += c.valor; if(c.paga) pago += c.valor;
+        dadosTabela.push([
+            c.nome, 
+            isoParaBR(c.vencimento), 
+            c.paga ? "PAGO" : "ABERTO", 
+            `R$ ${c.valor.toFixed(2)}`
+        ]);
+    });
+
+    pdf.autoTable({
+        head: [['CONTA', 'VENCIMENTO', 'STATUS', 'VALOR']],
+        body: dadosTabela,
+        startY: 40,
+        theme: 'grid', // Estilo grade
+        styles: { font: "courier", fontSize: 10 },
+        headStyles: { fillColor: [40, 40, 40] } // Cabeçalho escuro
+    });
+
+    // Rodapé Totais
+    y = pdf.lastAutoTable.finalY + 10;
+    pdf.rect(10, y, 190, 20);
+    pdf.setFont(undefined, 'bold');
+    pdf.text(`TOTAL GERAL: R$ ${total.toFixed(2)}`, 15, y+8);
+    pdf.text(`TOTAL PAGO:  R$ ${pago.toFixed(2)}`, 15, y+15);
+    pdf.text(`RESTANTE:    R$ ${(total-pago).toFixed(2)}`, 110, y+8);
+
+    // Código Verificação Falso
+    const hash = Math.random().toString(36).substring(2, 15).toUpperCase();
+    pdf.setFontSize(8); pdf.setTextColor(100);
+    pdf.text(`AUTENTICAÇÃO: ${hash}-${Date.now()}`, 105, 285, {align:'center'});
+    
+    // Código de Barras Fake
+    pdf.setFillColor(0);
+    pdf.rect(70, 270, 70, 8, 'F'); 
+
+    pdf.save(`relatorio_${mes.replace('/','-')}.pdf`);
+}
+
+function gerarComprovanteIndividual(i) {
+    if(!window.jspdf) { alert("Erro PDF"); return; }
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF();
+    const c = contas[i];
+    
+    pdf.rect(10, 10, 190, 120); // Borda Grande
+    pdf.setFontSize(22); pdf.setFont(undefined, 'bold');
+    pdf.text("RECIBO", 105, 25, {align:'center'});
+    
+    pdf.setFontSize(12); pdf.setFont(undefined, 'normal');
+    pdf.text(`Pagador: Sutello`, 20, 40);
+    pdf.text(`Referente a: ${c.nome}`, 20, 50);
+    pdf.text(`Vencimento: ${isoParaBR(c.vencimento)}`, 20, 60);
+    
+    pdf.setFontSize(16); pdf.setFont(undefined, 'bold');
+    pdf.text(`VALOR: R$ ${c.valor.toFixed(2)}`, 20, 80);
+    
+    if(c.paga) {
+        pdf.setTextColor(0,150,0);
+        pdf.text("SITUAÇÃO: PAGO", 20, 95);
+        pdf.setFontSize(10); pdf.setTextColor(0);
+        pdf.text(`Data Pagamento: ${isoParaBR(c.dataPagamento)}`, 20, 102);
+    } else {
+        pdf.setTextColor(200,0,0);
+        pdf.text("SITUAÇÃO: PENDENTE", 20, 95);
+    }
+    
+    pdf.setLineWidth(0.5); pdf.line(20, 110, 190, 110);
+    pdf.setFontSize(9); pdf.setTextColor(100);
+    pdf.text(`Hash: ${Math.random().toString(36).toUpperCase()}`, 105, 118, {align:'center'});
+    
+    pdf.save(`recibo_${c.nome}.pdf`);
+}
+
 function abrirOpcoes() { document.getElementById("modalOpcoes").style.display = "flex"; }
 function fecharOpcoes() { document.getElementById("modalOpcoes").style.display = "none"; }
 function abrirCalculadora() { document.getElementById("modalCalc").style.display = "flex"; }
 function fecharCalculadora() { document.getElementById("modalCalc").style.display = "none"; }
-function limparTextoPdf(texto) { return texto.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim(); }
-function baixarPdfMes(mes) { if(!window.jspdf) { alert("Carregando PDF..."); return; } const { jsPDF } = window.jspdf; const pdf = new jsPDF(); let y = 20; pdf.setFontSize(18); pdf.text(`Relatório: ${mes}`, 105, y, {align:'center'}); y += 15; pdf.setFontSize(10); const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes && (filtro === "todas" || (filtro === "pagas" && c.paga))); contasDoMes.forEach(c => { const nomeLimpo = limparTextoPdf(c.nome); pdf.text(nomeLimpo.substring(0, 30), 12, y); pdf.text(isoParaBR(c.vencimento), 80, y); pdf.text(`R$ ${c.valor.toFixed(2)}`, 175, y); y += 8; }); pdf.save(`extrato.pdf`); }
-function compartilharMes(mes) { let texto = `📅 ${mes}\n`; const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes); contasDoMes.forEach(c => { texto += `${c.paga?'✅':'⭕'} ${c.nome}: R$ ${c.valor.toFixed(2)}\n`; }); if (navigator.share) navigator.share({ title: 'Contas', text: texto }); else alert("Use um celular para compartilhar."); }
-function compartilharIndividual(i) { const c = contas[i]; const t = `Conta: ${c.nome}\nValor: R$ ${c.valor.toFixed(2)}\nVencimento: ${isoParaBR(c.vencimento)}`; if (navigator.share) navigator.share({ title: 'Conta', text: t }); }
-function gerarComprovanteIndividual(i) { alert("Requer jsPDF completo."); }
 let calcExpressao = "";
 function calcAdd(v) { calcExpressao += v; document.getElementById("calcDisplay").value = calcExpressao; }
 function calcLimpar() { calcExpressao = ""; document.getElementById("calcDisplay").value = ""; }
@@ -467,9 +575,11 @@ function setFiltro(f, btn) {
   btn.classList.add("ativo");
   render();
 }
+
 document.addEventListener("DOMContentLoaded", () => {
    if(localStorage.getItem("modoPrivado") === "true") document.body.classList.add("modo-privado");
 });
+
 function desbloquear() {
   const pinInput = document.getElementById("pin");
   if (pinInput && pinInput.value !== PIN) { alert("PIN incorreto."); pinInput.value = ""; return; }
@@ -478,6 +588,7 @@ function desbloquear() {
   carregarPerfil();
   render();
 }
+
 function carregarPerfil() {
   const f = localStorage.getItem("fotoPerfil");
   const img = document.getElementById("fotoPerfil");
