@@ -3,12 +3,11 @@ let contas = [];
 let logs = []; 
 let filtro = "todas"; 
 
-/* ================= INICIALIZAÇÃO SEGURA ================= */
+/* ================= INICIALIZAÇÃO ================= */
 try {
   const dadosLocais = localStorage.getItem("contas");
   if (dadosLocais) {
       contas = JSON.parse(dadosLocais) || [];
-      // Garante IDs únicos para o sistema funcionar
       contas.forEach(c => { if(!c.id) c.id = Date.now() + Math.random(); });
   }
   const logsLocais = localStorage.getItem("logs");
@@ -18,7 +17,7 @@ try {
   contas = []; logs = [];
 }
 
-/* ================= UTILITÁRIOS (DATAS E VISUAL) ================= */
+/* ================= UTILITÁRIOS VISUAIS ================= */
 function getIcone(nome) {
   const n = nome.toLowerCase();
   if (n.includes("luz") || n.includes("energia") || n.includes("cemig") || n.includes("enel")) return "💡";
@@ -56,10 +55,6 @@ function togglePrivacidade() {
     if(btn) btn.innerHTML = document.body.classList.contains("modo-privado") ? "🙈" : "👁️";
 }
 
-function limparTextoPdf(texto) {
-    return texto.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
-}
-
 function toggleMenu(id) {
     const menu = document.getElementById(`menu-${id}`);
     const btn = document.getElementById(`btn-expand-${id}`);
@@ -74,7 +69,7 @@ function toggleMenu(id) {
     }
 }
 
-/* ================= SISTEMA (SALVAR, LOGS, SEGURANÇA) ================= */
+/* ================= SISTEMA (SALVAR/LOGS) ================= */
 function confirmarSeguranca(acao) {
   const n1 = Math.floor(Math.random() * 9) + 1;
   const n2 = Math.floor(Math.random() * 9) + 1;
@@ -106,7 +101,30 @@ function registrarLog(acao, detalhe, backupData = null, relatedId = null) {
     salvar();
 }
 
-/* ================= RENDERIZAÇÃO (TELA INICIAL) ================= */
+function desfazerAcaoLog(logId) {
+    const logIndex = logs.findIndex(l => l.id === logId);
+    if(logIndex === -1) return;
+    const log = logs[logIndex];
+    if (!log.backup) { alert("Irreversível."); return; }
+    if (!confirm(`Desfazer: "${log.acao}"?`)) return;
+
+    if (log.relatedId) {
+        const relatedIndex = contas.findIndex(c => c.id === log.relatedId);
+        if (relatedIndex !== -1) contas.splice(relatedIndex, 1);
+    }
+
+    if (log.acao.includes("EXCLUÍDO")) {
+        contas.push(log.backup);
+    } else {
+        const contaIndex = contas.findIndex(c => c.id === log.backup.id);
+        if (contaIndex !== -1) contas[contaIndex] = log.backup;
+        else contas.push(log.backup);
+    }
+    logs.splice(logIndex, 1);
+    salvar(); abrirHistorico(); alert("Desfeito! ↩️");
+}
+
+/* ================= RENDERIZAÇÃO ================= */
 function render() {
   const lista = document.getElementById("lista");
   if(!lista) return;
@@ -184,9 +202,7 @@ function render() {
 
       let obsHtml = c.obs ? `<div style="font-size:11px; color:#ff9800; margin-top:5px;">⚠️ ${c.obs}</div>` : "";
       
-      let btnPrincipal = "";
-      if (!c.paga) btnPrincipal = `<button class="btn-pagar" onclick="iniciarPagamento(${c.originalIndex})">✅ PAGAR</button>`;
-      else btnPrincipal = `<button class="btn-reverter" onclick="desfazerPagamento(${c.originalIndex})">↩️ DESFAZER</button>`;
+      let btnPrincipal = !c.paga ? `<button class="btn-pagar" onclick="iniciarPagamento(${c.originalIndex})">✅ PAGAR</button>` : `<button class="btn-reverter" onclick="desfazerPagamento(${c.originalIndex})">↩️ DESFAZER</button>`;
 
       const menuId = `menu-${c.id}`; 
       const btnExpandId = `btn-expand-${c.id}`;
@@ -282,33 +298,6 @@ function abrirHistorico() {
     });
 }
 
-function desfazerAcaoLog(logId) {
-    const logIndex = logs.findIndex(l => l.id === logId);
-    if(logIndex === -1) return;
-    const log = logs[logIndex];
-    
-    if (!log.backup) { alert("Ação irreversível."); return; }
-    if (!confirm(`Desfazer: "${log.acao}"?`)) return;
-
-    if (log.relatedId) {
-        const relatedIndex = contas.findIndex(c => c.id === log.relatedId);
-        if (relatedIndex !== -1) contas.splice(relatedIndex, 1);
-    }
-
-    if (log.acao.includes("EXCLUÍDO")) {
-        contas.push(log.backup);
-    } else {
-        const contaIndex = contas.findIndex(c => c.id === log.backup.id);
-        if (contaIndex !== -1) contas[contaIndex] = log.backup;
-        else contas.push(log.backup);
-    }
-
-    logs.splice(logIndex, 1);
-    salvar();
-    abrirHistorico();
-    alert("Desfeito com sucesso! ↩️");
-}
-
 function compartilharLog() {
     let texto = "📜 *Registro de Atividades*\n\n";
     logs.forEach(l => { texto += `[${new Date(l.data).toLocaleDateString()}] ${l.acao}: ${l.detalhe}\n`; });
@@ -336,19 +325,73 @@ function limparLogs(tipo) {
     salvar(); abrirHistorico();
 }
 
-/* ================= CRUD ================= */
+/* ================= CRUD COMPLETO (RESTAURADO) ================= */
+function adicionarConta() {
+  const nome = prompt("Nome:"); if (!nome) return;
+  const valorStr = prompt("Valor:"); if (!valorStr) return;
+  const valor = parseFloat(valorStr.replace(",", "."));
+  const data = prompt("Vencimento (DD/MM/AAAA):"); if (!data) return;
+  const codigoPix = prompt("Pix (Opcional):");
+  
+  let recorrente = confirm("Recorrente?");
+  let repeticoes = null, totalParcelas = 0;
+  if (recorrente) { 
+      const r = prompt("Parcelas? (0 p/ infinito)"); 
+      const n = Number(r); 
+      if (n > 0) { repeticoes = n; totalParcelas = n; } 
+  }
+
+  contas.push({ 
+      id: Date.now()+Math.random(), 
+      nome, 
+      valor, 
+      vencimento: brParaISO(data), 
+      codigoPix: codigoPix || "", 
+      paga: false, 
+      oculta: false,
+      recorrente,
+      repeticoes,
+      totalParcelas,
+      parcelaAtual: recorrente ? 1 : null,
+      dataPagamento: null 
+  });
+  
+  registrarLog("CRIADO", `Nova conta: ${nome} - R$ ${valor}`);
+  salvar();
+}
+
+function editarConta(i) {
+    if (!confirmarSeguranca("EDITAR")) return;
+    const c = contas[i]; 
+    const backup = JSON.parse(JSON.stringify(c));
+    
+    const novoNome = prompt("Nome:", c.nome); if (novoNome === null) return; 
+    const novoValorStr = prompt("Valor:", c.valor); if (novoValorStr === null) return;
+    const novoValor = parseFloat(novoValorStr.replace(",", "."));
+    const novaData = prompt("Data:", isoParaBR(c.vencimento)); if (novaData === null) return;
+    const novoPix = prompt("Pix:", c.codigoPix || "");
+    
+    const isRecorrente = confirm("Recorrente?");
+    let novaParcelaAtual = null; let novoTotalParcelas = null;
+    if (isRecorrente) {
+        const pAtual = prompt("Parcela Atual?", c.parcelaAtual || 1); novaParcelaAtual = pAtual ? parseInt(pAtual) : 1;
+        const pTotal = prompt("Total Parcelas?", c.totalParcelas || ""); novoTotalParcelas = (pTotal && parseInt(pTotal) > 0) ? parseInt(pTotal) : null;
+    }
+
+    if (!novoNome || isNaN(novoValor) || !novaData) { alert("Inválido."); return; }
+    
+    c.nome = novoNome; c.valor = novoValor; c.vencimento = brParaISO(novaData);
+    c.codigoPix = novoPix || ""; c.recorrente = isRecorrente; c.parcelaAtual = novaParcelaAtual; c.totalParcelas = novoTotalParcelas;
+    
+    registrarLog("EDITADO", `Alterou ${c.nome}`, backup);
+    salvar();
+}
+
 function adiarConta(i) {
     if (!confirmarSeguranca("MOVER")) return;
     const c = contas[i]; const backup = JSON.parse(JSON.stringify(c));
     const novaData = prompt("Nova data:", isoParaBR(proximoMes(c.vencimento)));
     if (novaData) { c.vencimento = brParaISO(novaData); registrarLog("ADIADO", `${c.nome} para ${novaData}`, backup); salvar(); }
-}
-function editarConta(i) {
-    if (!confirmarSeguranca("EDITAR")) return;
-    const c = contas[i]; const backup = JSON.parse(JSON.stringify(c));
-    const n = prompt("Nome:", c.nome); if(!n) return;
-    const v = prompt("Valor:", c.valor); const d = prompt("Data:", isoParaBR(c.vencimento));
-    if(n && v && d) { c.nome = n; c.valor = parseFloat(v.replace(",",".")); c.vencimento = brParaISO(d); registrarLog("EDITADO", `Alterou ${c.nome}`, backup); salvar(); }
 }
 function ocultarConta(i) { 
     if(!confirmarSeguranca("ARQUIVAR")) return;
@@ -374,14 +417,6 @@ function clonarConta(i) {
     const copia = { ...original, id: Date.now()+Math.random(), nome: original.nome + " (Cópia)", paga: false, oculta: false, dataPagamento: null, recorrente: false };
     contas.push(copia); registrarLog("CLONADO", `Clonou ${original.nome}`); salvar();
 }
-function adicionarConta() {
-  const nome = prompt("Nome:"); if (!nome) return;
-  const valorStr = prompt("Valor:");
-  const valor = parseFloat(valorStr.replace(",", "."));
-  const data = prompt("Vencimento (DD/MM/AAAA):"); 
-  contas.push({ id: Date.now()+Math.random(), nome, valor, vencimento: brParaISO(data), codigoPix: "", paga: false, oculta: false });
-  registrarLog("CRIADO", `Nova conta: ${nome} - R$ ${valor}`); salvar();
-}
 function copiarPix(i) { const c = contas[i]; if(c.codigoPix) navigator.clipboard.writeText(c.codigoPix).then(()=>alert("Copiado!")); }
 
 /* ================= EXTRAS ================= */
@@ -399,14 +434,14 @@ function lerArquivoBackup(input) {
                 if(confirm("Restaurar backup antigo?")) { 
                     contas = dados; logs = []; 
                     contas.forEach(c => { if(!c.id) c.id = Date.now() + Math.random(); });
-                    salvar(); alert("Backup antigo restaurado!"); location.reload(); 
+                    salvar(); alert("Restaurado!"); location.reload(); 
                 } 
             } else if (dados.contas) {
                 if(confirm("Restaurar backup completo?")) { 
                     contas = dados.contas; logs = dados.logs || [];
-                    salvar(); alert("Backup restaurado!"); location.reload(); 
+                    salvar(); alert("Restaurado!"); location.reload(); 
                 }
-            } else alert("Formato inválido.");
+            } else alert("Inválido.");
         } catch(err) { alert("Erro ao ler."); } 
     }; 
     reader.readAsText(file); 
@@ -416,6 +451,7 @@ function abrirOpcoes() { document.getElementById("modalOpcoes").style.display = 
 function fecharOpcoes() { document.getElementById("modalOpcoes").style.display = "none"; }
 function abrirCalculadora() { document.getElementById("modalCalc").style.display = "flex"; }
 function fecharCalculadora() { document.getElementById("modalCalc").style.display = "none"; }
+function limparTextoPdf(texto) { return texto.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim(); }
 function baixarPdfMes(mes) { if(!window.jspdf) { alert("Carregando PDF..."); return; } const { jsPDF } = window.jspdf; const pdf = new jsPDF(); let y = 20; pdf.setFontSize(18); pdf.text(`Relatório: ${mes}`, 105, y, {align:'center'}); y += 15; pdf.setFontSize(10); const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes && (filtro === "todas" || (filtro === "pagas" && c.paga))); contasDoMes.forEach(c => { const nomeLimpo = limparTextoPdf(c.nome); pdf.text(nomeLimpo.substring(0, 30), 12, y); pdf.text(isoParaBR(c.vencimento), 80, y); pdf.text(`R$ ${c.valor.toFixed(2)}`, 175, y); y += 8; }); pdf.save(`extrato.pdf`); }
 function compartilharMes(mes) { let texto = `📅 ${mes}\n`; const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes); contasDoMes.forEach(c => { texto += `${c.paga?'✅':'⭕'} ${c.nome}: R$ ${c.valor.toFixed(2)}\n`; }); if (navigator.share) navigator.share({ title: 'Contas', text: texto }); else alert("Use um celular para compartilhar."); }
 function compartilharIndividual(i) { const c = contas[i]; const t = `Conta: ${c.nome}\nValor: R$ ${c.valor.toFixed(2)}\nVencimento: ${isoParaBR(c.vencimento)}`; if (navigator.share) navigator.share({ title: 'Conta', text: t }); }
@@ -425,11 +461,15 @@ function calcAdd(v) { calcExpressao += v; document.getElementById("calcDisplay")
 function calcLimpar() { calcExpressao = ""; document.getElementById("calcDisplay").value = ""; }
 function calcCalcular() { try { document.getElementById("calcDisplay").value = eval(calcExpressao); } catch { alert("Erro"); } }
 function fecharAviso() { const av = document.getElementById("avisoSwipe"); if(av) av.remove(); }
-
+function setFiltro(f, btn) {
+  filtro = f;
+  document.querySelectorAll(".filtros button").forEach(b => b.classList.remove("ativo"));
+  btn.classList.add("ativo");
+  render();
+}
 document.addEventListener("DOMContentLoaded", () => {
    if(localStorage.getItem("modoPrivado") === "true") document.body.classList.add("modo-privado");
 });
-
 function desbloquear() {
   const pinInput = document.getElementById("pin");
   if (pinInput && pinInput.value !== PIN) { alert("PIN incorreto."); pinInput.value = ""; return; }
@@ -438,7 +478,6 @@ function desbloquear() {
   carregarPerfil();
   render();
 }
-
 function carregarPerfil() {
   const f = localStorage.getItem("fotoPerfil");
   const img = document.getElementById("fotoPerfil");
@@ -453,11 +492,4 @@ if(imgPerfil && inputUpload) {
       r.onload = () => { localStorage.setItem("fotoPerfil", r.result); imgPerfil.src = r.result; };
       r.readAsDataURL(e.target.files[0]);
     };
-}
-
-function setFiltro(f, btn) {
-  filtro = f;
-  document.querySelectorAll(".filtros button").forEach(b => b.classList.remove("ativo"));
-  btn.classList.add("ativo");
-  render();
 }
