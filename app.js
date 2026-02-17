@@ -1,53 +1,83 @@
 const PIN = "2007"; 
 
-async function autenticarBiometria() {
+// 1. Função principal do Botão "USAR BIOMETRIA"
+async function acaoBotaoBiometria() {
     const disponivel = window.PublicKeyCredential && 
                        await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-
-    if (disponivel) {
-        try {
-            // Tenta verificar digital já existente
-            await navigator.credentials.get({
-                publicKey: { challenge: new Uint8Array([1,2,3,4]), userVerification: "required" }
-            });
-            entrarNoApp();
-        } catch (err) {
-            // Se cair aqui (como na sua foto), oferecemos o cadastro ou PIN
-            console.log("Sem chave ou cancelado");
-            const querCadastrar = confirm("Deseja cadastrar sua digital para acessos futuros?");
-            if (querCadastrar) cadastrarChaveAcesso();
-            else pedirPinFallback();
-        }
-    } else {
+    
+    if (!disponivel) {
+        alert("Biometria não disponível neste aparelho.");
         pedirPinFallback();
+        return;
+    }
+
+    try {
+        // Tenta VERIFICAR se já tem digital
+        const credential = await navigator.credentials.get({
+            publicKey: {
+                challenge: crypto.getRandomValues(new Uint8Array(32)),
+                userVerification: "required"
+            }
+        });
+        if (credential) entrarNoApp();
+    } catch (e) {
+        // Se der erro de "Nenhuma chave disponível", ele pergunta se quer cadastrar
+        if (confirm("Nenhuma digital vinculada a este app. Deseja cadastrar sua digital agora?")) {
+            cadastrarChaveAcesso();
+        }
     }
 }
 
-// Função para "Criar" a chave no seu Android a primeira vez
+// 2. Função para Criar a Chave (necessário apenas na primeira vez)
 async function cadastrarChaveAcesso() {
     try {
-        await navigator.credentials.create({
+        const challenge = crypto.getRandomValues(new Uint8Array(32));
+        const userId = crypto.getRandomValues(new Uint8Array(16));
+
+        const credential = await navigator.credentials.create({
             publicKey: {
-                challenge: new Uint8Array([1,2,3,4]),
-                rp: { name: "Minhas Contas" },
-                user: { id: new Uint8Array([1]), name: "Sutello", displayName: "Sutello" },
+                challenge: challenge,
+                rp: { name: "Minhas Contas" }, // Removido o ID fixo para evitar erro de domínio
+                user: {
+                    id: userId,
+                    name: "Sutello",
+                    displayName: "Sutello"
+                },
                 pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-                authenticatorSelection: { authenticatorAttachment: "platform" }
+                authenticatorSelection: {
+                    authenticatorAttachment: "platform",
+                    userVerification: "required"
+                },
+                timeout: 60000
             }
         });
-        alert("Digital cadastrada com sucesso! ✅");
-        entrarNoApp();
-    } catch (e) { alert("Falha ao cadastrar digital."); }
+
+        if (credential) {
+            alert("Digital vinculada com sucesso! ✅");
+            entrarNoApp();
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Falha ao cadastrar. Tente usar o PIN.");
+    }
 }
 
+// 3. Correção do PIN e Entrada
 function pedirPinFallback() {
-    const tentativa = prompt("🔒 Digite o PIN de acesso:");
+    const tentativa = prompt("🔒 Acesso Restrito\nDigite o PIN de segurança:");
     if (tentativa === null) return;
-    if (tentativa.trim() === PIN) { // .trim() resolve o erro de espaços
+    if (tentativa.trim() === PIN) {
         entrarNoApp();
     } else {
         alert("❌ PIN Incorreto.");
     }
+}
+
+function entrarNoApp() {
+    document.getElementById("lock").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    carregarPerfil();
+    render();
 }
 
 
