@@ -197,29 +197,36 @@ function render() {
   if(!lista) return;
   lista.innerHTML = "";
 
-  // 1. Configura busca e botões
+  // Verifica se o modo privado está ligado
+  const isPrivado = document.body.classList.contains("modo-privado");
+  // Função que esconde o valor se estiver privado
+  const fmtMoney = (v) => isPrivado ? "••••" : `R$ ${v.toFixed(2)}`;
+
+  // 1. Configura busca e botão do Olho
   if(!document.getElementById("btnPrivacidade")) {
       const divFiltros = document.querySelector(".filtros");
       if(divFiltros) {
           const divBusca = document.createElement("div");
           divBusca.className = "busca-container";
           divBusca.style.cssText = "display:flex; gap:10px; padding:0 15px; margin-top:10px;";
-          const iconeOlho = document.body.classList.contains("modo-privado") ? "🙈" : "👁️";
+          // Ícone muda conforme o estado
+          const iconeOlho = isPrivado ? "🙈" : "👁️";
           divBusca.innerHTML = `
             <input type="text" id="inputBusca" placeholder="🔍 Buscar..." onkeyup="render()" 
             style="flex:1; padding:10px; border-radius:20px; border:1px solid #444; background:#222; color:white; text-align:center;">
             <button id="btnPrivacidade" onclick="togglePrivacidade()" style="background:none; border:none; font-size:22px; cursor:pointer;">${iconeOlho}</button>`;
           divFiltros.parentNode.insertBefore(divBusca, divFiltros);
       }
-      const btns = document.querySelectorAll('.filtros button');
-      if(btns.length > 0 && filtro === 'todas') btns[0].classList.add('ativo');
+  } else {
+      // Atualiza o ícone do olho se já existir o botão
+      document.getElementById("btnPrivacidade").innerHTML = isPrivado ? "🙈" : "👁️";
   }
 
   const termo = document.getElementById("inputBusca") ? document.getElementById("inputBusca").value.toLowerCase() : "";
   const contasComIndex = contas.map((c, i) => ({...c, originalIndex: i}));
   const grupos = {};
   
-  // 2. Agrupa por Mês
+  // Agrupa por Mês
   [...contasComIndex].sort((a,b) => new Date(a.vencimento) - new Date(b.vencimento)).forEach(c => {
       const k = mesAno(c.vencimento);
       if(!grupos[k]) grupos[k] = [];
@@ -231,7 +238,6 @@ function render() {
       return;
   }
 
-  // 3. Processa cada Mês
   Object.keys(grupos).forEach(k => {
     const todasDoMes = grupos[k];
     
@@ -256,12 +262,13 @@ function render() {
 
     const bloco = document.createElement("div");
     bloco.className = "mes-container";
+    // AQUI ESTÁ A CORREÇÃO VISUAL DOS TOTAIS
     bloco.innerHTML = `
       <div class="cabecalho-mes"><h3>📅 ${k}</h3><div class="acoes-mes"><button onclick="compartilharMes('${k}')">📤</button><button onclick="baixarPdfMes('${k}')">📄</button></div></div>
       <div class="resumo-mes">
-          <div class="resumo-item"><small>Total</small><strong class="texto-branco">R$ ${totalMes.toFixed(2)}</strong></div>
-          <div class="resumo-item"><small>Pago</small><strong class="texto-verde">R$ ${pagoMes.toFixed(2)}</strong></div>
-          <div class="resumo-item"><small>Falta</small><strong class="texto-vermelho">R$ ${faltaMes.toFixed(2)}</strong></div>
+          <div class="resumo-item"><small>Total</small><strong class="texto-branco">${fmtMoney(totalMes)}</strong></div>
+          <div class="resumo-item"><small>Pago</small><strong class="texto-verde">${fmtMoney(pagoMes)}</strong></div>
+          <div class="resumo-item"><small>Falta</small><strong class="texto-vermelho">${fmtMoney(faltaMes)}</strong></div>
           <div class="barra-container"><div class="barra-fundo"><div class="barra-preenchimento" style="width: ${pct}%"></div></div><div class="barra-texto">${pct.toFixed(0)}% Pago</div></div>
       </div>
     `;
@@ -275,16 +282,16 @@ function render() {
       else if (vencInfo.classe === "vencido") classes += " atrasada";
 
       let htmlParcelas = "";
-      // Mostra 1/5 na tela
       if (c.totalParcelas && c.totalParcelas > 0) {
           htmlParcelas = `<div class="info-parcelas"><div>🔢 ${c.parcelaAtual}/${c.totalParcelas}</div></div>`;
       } else if (c.recorrente) htmlParcelas = `<div class="info-parcelas"><div>🔄 Recorrente</div></div>`;
 
       div.className = classes;
+      // AQUI ESTÁ A CORREÇÃO VISUAL DA CONTA INDIVIDUAL
       div.innerHTML = `
         ${(!c.paga && vencInfo.classe === "vencido") ? `<span class="badge-vencido">VENCIDO</span>` : ``}
         <div style="font-size: 1.1em; margin-bottom: 5px;"><strong>${icone} ${c.nome}</strong></div>
-        <div style="font-size: 1.2em; font-weight: bold;">💰 R$ ${c.valor.toFixed(2)}</div>
+        <div style="font-size: 1.2em; font-weight: bold;">💰 ${fmtMoney(c.valor)}</div>
         <div style="margin-top: 5px;">📅 ${isoParaBR(c.vencimento)}</div>
         ${htmlParcelas}
         <small class="vencimento ${vencInfo.classe}">${c.paga ? "PAGO ✅" : vencInfo.texto}</small>
@@ -837,16 +844,34 @@ function lerArquivoBackup(input) {
     r.readAsText(f);
 }
 
-// Inicialização
+/* ================= 8. INICIALIZAÇÃO, PERFIL E UTILITÁRIOS ================= */
+
 document.addEventListener("DOMContentLoaded", () => {
     try {
         const dados = localStorage.getItem("contas");
         if(dados) contas = JSON.parse(dados);
         const l = localStorage.getItem("logs");
         if(l) logs = JSON.parse(l);
-        if(localStorage.getItem("modoPrivado") === "true") document.body.classList.add("modo-privado");
+        
+        // Verifica se estava em modo privado e aplica a classe
+        if(localStorage.getItem("modoPrivado") === "true") {
+            document.body.classList.add("modo-privado");
+        }
         
         carregarPerfil();
+        
+        // Configura o clique da foto
+        const imgPerfil = document.getElementById("fotoPerfil");
+        const inputUpload = document.getElementById("uploadFoto");
+        if(imgPerfil && inputUpload) {
+            imgPerfil.onclick = () => inputUpload.click();
+            inputUpload.onchange = e => {
+                const r = new FileReader();
+                r.onload = () => { localStorage.setItem("fotoPerfil", r.result); imgPerfil.src = r.result; };
+                r.readAsDataURL(e.target.files[0]);
+            };
+        }
+
         tentarAutoLogin(); 
     } catch(e) { console.error("Erro init", e); }
 });
@@ -856,16 +881,8 @@ function carregarPerfil() {
     const img = document.getElementById("fotoPerfil");
     if(f && img) img.src = f;
 }
-const inputUpload = document.getElementById("uploadFoto");
-if(inputUpload) {
-    inputUpload.onchange = e => {
-        const r = new FileReader();
-        r.onload = () => { localStorage.setItem("fotoPerfil", r.result); document.getElementById("fotoPerfil").src = r.result; };
-        r.readAsDataURL(e.target.files[0]);
-    };
-}
 
-/* ================= 8. UTILITÁRIOS (DATA, TEXTO) ================= */
+// Utilitários de Data e Ícones
 const isoParaBR = d => d.split("-").reverse().join("/");
 const brParaISO = d => d.split("/").reverse().join("-");
 const mesAno = d => d.split("-").slice(1, 0).reverse().join("/") || d.substring(5,7) + "/" + d.substring(0,4);
