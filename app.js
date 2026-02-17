@@ -1,34 +1,28 @@
+/* ================= SISTEMA DE ACESSO E SEGURANÇA ================= */
 const PIN = "2007"; 
 
-// 1. Função principal do Botão "USAR BIOMETRIA"
+// 1. BIOMETRIA
 async function acaoBotaoBiometria() {
     const disponivel = window.PublicKeyCredential && 
                        await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     
     if (!disponivel) {
-        alert("Biometria não disponível neste aparelho.");
-        pedirPinFallback();
+        exibirMensagemModal("Aviso", "Biometria não disponível neste aparelho.");
         return;
     }
 
     try {
-        // Tenta VERIFICAR se já tem digital
-        const credential = await navigator.credentials.get({
-            publicKey: {
-                challenge: crypto.getRandomValues(new Uint8Array(32)),
-                userVerification: "required"
-            }
+        // Tenta verificar digital existente
+        await navigator.credentials.get({
+            publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), userVerification: "required" }
         });
-        if (credential) entrarNoApp();
+        entrarNoApp();
     } catch (e) {
-        // Se der erro de "Nenhuma chave disponível", ele pergunta se quer cadastrar
-        if (confirm("Nenhuma digital vinculada a este app. Deseja cadastrar sua digital agora?")) {
-            cadastrarChaveAcesso();
-        }
+        // Se der erro (como nos seus prints), oferece o cadastro no SEU MODAL
+        mostrarConfirmacaoModal("Digital não vinculada", "Deseja cadastrar sua digital agora?", cadastrarChaveAcesso);
     }
 }
 
-// 2. Função para Criar a Chave (necessário apenas na primeira vez)
 async function cadastrarChaveAcesso() {
     try {
         const challenge = crypto.getRandomValues(new Uint8Array(32));
@@ -37,40 +31,80 @@ async function cadastrarChaveAcesso() {
         const credential = await navigator.credentials.create({
             publicKey: {
                 challenge: challenge,
-                rp: { name: "Minhas Contas" }, // Removido o ID fixo para evitar erro de domínio
-                user: {
-                    id: userId,
-                    name: "Sutello",
-                    displayName: "Sutello"
-                },
+                rp: { name: "Minhas Contas" }, 
+                user: { id: userId, name: "Sutello", displayName: "Sutello" },
                 pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-                authenticatorSelection: {
-                    authenticatorAttachment: "platform",
-                    userVerification: "required"
-                },
-                timeout: 60000
+                authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }
             }
         });
 
         if (credential) {
-            alert("Digital vinculada com sucesso! ✅");
+            exibirMensagemModal("Sucesso", "Digital vinculada! ✅");
             entrarNoApp();
         }
     } catch (e) {
-        console.error(e);
-        alert("Falha ao cadastrar. Tente usar o PIN.");
+        exibirMensagemModal("Erro", "Falha ao cadastrar. Verifique o bloqueio de tela do celular.");
     }
 }
 
-// 3. Correção do PIN e Entrada
+// 2. PIN (CORRIGIDO: Agora o botão funciona)
 function pedirPinFallback() {
-    const tentativa = prompt("🔒 Acesso Restrito\nDigite o PIN de segurança:");
-    if (tentativa === null) return;
-    if (tentativa.trim() === PIN) {
-        entrarNoApp();
+    const modal = document.getElementById("modalDecisao");
+    document.getElementById("tituloDecisao").innerText = "Acesso via PIN";
+    const texto = document.getElementById("textoDecisao");
+    
+    texto.innerHTML = `
+        <input type="password" id="inputPinAcesso" inputmode="numeric" placeholder="Digite o PIN" 
+        style="width:100%; padding:15px; border-radius:10px; border:1px solid #444; background:#222; color:white; text-align:center; font-size:20px;">
+    `;
+    
+    const btn1 = document.getElementById("btnOpcao1");
+    btn1.innerText = "ENTRAR";
+    btn1.onclick = () => {
+        const val = document.getElementById("inputPinAcesso").value;
+        if (val === PIN) {
+            fecharModalDecisao();
+            entrarNoApp();
+        } else {
+            exibirMensagemModal("Erro", "PIN Incorreto!");
+        }
+    };
+    
+    document.getElementById("btnOpcao2").style.display = "none";
+    modal.style.display = "flex";
+}
+
+// 3. SEGURANÇA MATEMÁTICA (Substitui o "arenadointer... diz")
+function confirmarSeguranca(acao, callback) {
+  const n1 = Math.floor(Math.random() * 9) + 1;
+  const n2 = Math.floor(Math.random() * 9) + 1;
+  const soma = n1 + n2;
+  
+  const modal = document.getElementById("modalDecisao");
+  document.getElementById("tituloDecisao").innerText = "🛡️ Segurança";
+  const texto = document.getElementById("textoDecisao");
+  
+  texto.innerHTML = `Para <b>${acao}</b>, resolva:<br><br><span style="font-size:24px;">${n1} + ${n2} = ?</span><br><br>` +
+                   `<input type="number" id="respSeguranca" inputmode="numeric" style="width:80px; padding:10px; border-radius:8px; border:1px solid #444; background:#222; color:white; text-align:center; font-size:18px;">`;
+
+  const btn1 = document.getElementById("btnOpcao1");
+  btn1.innerText = "CONFIRMAR";
+  btn1.onclick = () => {
+    const resp = document.getElementById("respSeguranca").value;
+    if (parseInt(resp) === soma) {
+      fecharModalDecisao();
+      callback(); 
     } else {
-        alert("❌ PIN Incorreto.");
+      exibirMensagemModal("Erro", "Resposta incorreta!");
     }
+  };
+
+  document.getElementById("btnOpcao2").style.display = "none"; 
+  modal.style.display = "flex";
+}
+
+function fecharModalDecisao() {
+    document.getElementById("modalDecisao").style.display = "none";
 }
 
 function entrarNoApp() {
@@ -701,4 +735,29 @@ if(imgPerfil && inputUpload) {
       r.onload = () => { localStorage.setItem("fotoPerfil", r.result); imgPerfil.src = r.result; };
       r.readAsDataURL(e.target.files[0]);
     };
+}
+
+function exibirMensagemModal(titulo, mensagem) {
+    const modal = document.getElementById("modalDecisao");
+    document.getElementById("tituloDecisao").innerText = titulo;
+    document.getElementById("textoDecisao").innerText = mensagem;
+    const btn1 = document.getElementById("btnOpcao1");
+    btn1.innerText = "OK";
+    btn1.onclick = fecharModalDecisao;
+    document.getElementById("btnOpcao2").style.display = "none";
+    modal.style.display = "flex";
+}
+
+function mostrarConfirmacaoModal(titulo, mensagem, callback) {
+    const modal = document.getElementById("modalDecisao");
+    document.getElementById("tituloDecisao").innerText = titulo;
+    document.getElementById("textoDecisao").innerText = mensagem;
+    const btn1 = document.getElementById("btnOpcao1");
+    const btn2 = document.getElementById("btnOpcao2");
+    btn1.innerText = "SIM";
+    btn1.onclick = () => { fecharModalDecisao(); callback(); };
+    btn2.style.display = "block";
+    btn2.innerText = "NÃO";
+    btn2.onclick = fecharModalDecisao;
+    modal.style.display = "flex";
 }
