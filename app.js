@@ -60,8 +60,19 @@ async function cadastrarChaveAcesso() {
         });
 
         if (credential) {
-            exibirMensagemModal("Sucesso ✅", "Digital vinculada! Agora você pode entrar clicando em Usar Biometria.");
+            // 1. ESTA É A LINHA NOVA QUE SALVA O CADASTRO
+            localStorage.setItem("biometria_cadastrada", "true"); 
+
+            // 2. Aqui mudamos a mensagem para avisar que vai entrar
+            exibirMensagemModal("Sucesso ✅", "Digital vinculada! Entrando...");
+            
+            // 3. Entra no app automaticamente após 1.5 segundos
+            setTimeout(() => {
+                fecharModalDecisao();
+                entrarNoApp();
+            }, 1500);
         }
+
     } catch (e) {
         exibirMensagemModal("Erro", "Falha ao vincular digital. Verifique o bloqueio de tela do celular.");
     }
@@ -397,3 +408,19 @@ function registrarLog(acao, detalhe, backup = null) {
 
 // Inicializa o App
 render();
+
+// Tenta disparar a biometria automaticamente se o usuário já cadastrou antes
+async function tentarAutoLogin() {
+    const jaCadastrou = localStorage.getItem("biometria_cadastrada");
+    if (jaCadastrou === "true") {
+        // Pequeno atraso para o navegador carregar totalmente
+        setTimeout(() => {
+            acaoBotaoBiometria(); 
+        }, 500);
+    }
+}
+
+// Chame essa função no final do arquivo ou no DOMContentLoaded
+document.addEventListener("DOMContentLoaded", () => {
+    tentarAutoLogin();
+});
