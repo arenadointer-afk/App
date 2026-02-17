@@ -1,28 +1,38 @@
-/* ================= SISTEMA DE ACESSO E SEGURANÇA ================= */
+/* ================= ACESSO E SEGURANÇA BLINDADOS ================= */
 const PIN = "2007"; 
 
-// 1. BIOMETRIA
+// 1. Função do Botão "USAR BIOMETRIA"
 async function acaoBotaoBiometria() {
     const disponivel = window.PublicKeyCredential && 
                        await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     
     if (!disponivel) {
-        exibirMensagemModal("Aviso", "Biometria não disponível neste aparelho.");
+        exibirMensagemModal("Aviso", "Biometria não disponível.");
         return;
     }
 
     try {
-        // Tenta verificar digital existente
-        await navigator.credentials.get({
+        // Tenta buscar a digital
+        const credential = await navigator.credentials.get({
             publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), userVerification: "required" }
         });
-        entrarNoApp();
+        
+        if (credential) {
+            entrarNoApp(); // SÓ ENTRA SE TIVER SUCESSO
+        }
     } catch (e) {
-        // Se der erro (como nos seus prints), oferece o cadastro no SEU MODAL
-        mostrarConfirmacaoModal("Digital não vinculada", "Deseja cadastrar sua digital agora?", cadastrarChaveAcesso);
+        console.log("Falha na leitura:", e);
+        // Se der erro de "Nenhuma chave", ele pergunta se quer cadastrar.
+        // Se o cadastro falhar, ele NÃO entra no app.
+        mostrarConfirmacaoModal(
+            "Digital não encontrada", 
+            "Não existe digital vinculada. Deseja cadastrar agora?", 
+            cadastrarChaveAcesso
+        );
     }
 }
 
+// 2. Cadastro da Digital (Corrigido para o GitHub Pages)
 async function cadastrarChaveAcesso() {
     try {
         const challenge = crypto.getRandomValues(new Uint8Array(32));
@@ -32,87 +42,52 @@ async function cadastrarChaveAcesso() {
             publicKey: {
                 challenge: challenge,
                 rp: { name: "Minhas Contas" }, 
-                user: { id: userId, name: "Sutello", displayName: "Sutello" },
+                user: { id: userId, name: "sutello", displayName: "Sutello" },
                 pubKeyCredParams: [{ alg: -7, type: "public-key" }],
                 authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }
             }
         });
 
         if (credential) {
-            exibirMensagemModal("Sucesso", "Digital vinculada! ✅");
-            entrarNoApp();
+            exibirMensagemModal("Sucesso", "Digital cadastrada! Use-a para entrar.");
+            // Opcional: entrarNoApp(); ou pedir para ele clicar em biometria de novo
         }
     } catch (e) {
-        exibirMensagemModal("Erro", "Falha ao cadastrar. Verifique o bloqueio de tela do celular.");
+        console.error("Erro no cadastro:", e);
+        exibirMensagemModal("Erro", "Falha ao cadastrar digital. Use o PIN.");
+        // AQUI ESTÁ A CORREÇÃO: Não tem "entrarNoApp()" aqui, então ele fica travado na tela de lock.
     }
 }
 
-// 2. PIN (CORRIGIDO: Agora o botão funciona)
+// 3. PIN (Corrigido para validar antes de entrar)
 function pedirPinFallback() {
     const modal = document.getElementById("modalDecisao");
-    document.getElementById("tituloDecisao").innerText = "Acesso via PIN";
+    const titulo = document.getElementById("tituloDecisao");
     const texto = document.getElementById("textoDecisao");
-    
+    const btn1 = document.getElementById("btnOpcao1");
+    const btn2 = document.getElementById("btnOpcao2");
+
+    titulo.innerText = "Acesso via PIN";
     texto.innerHTML = `
-        <input type="password" id="inputPinAcesso" inputmode="numeric" placeholder="Digite o PIN" 
-        style="width:100%; padding:15px; border-radius:10px; border:1px solid #444; background:#222; color:white; text-align:center; font-size:20px;">
+        <input type="password" id="inputPinAcesso" inputmode="numeric" placeholder="••••" 
+        style="width:100%; padding:15px; border-radius:12px; border:1px solid #444; background:#222; color:white; text-align:center; font-size:24px;">
     `;
     
-    const btn1 = document.getElementById("btnOpcao1");
     btn1.innerText = "ENTRAR";
     btn1.onclick = () => {
-        const val = document.getElementById("inputPinAcesso").value;
-        if (val === PIN) {
+        const input = document.getElementById("inputPinAcesso");
+        if (input && input.value.trim() === PIN) {
             fecharModalDecisao();
-            entrarNoApp();
+            entrarNoApp(); // SÓ ENTRA SE O PIN FOR EXATO
         } else {
             exibirMensagemModal("Erro", "PIN Incorreto!");
         }
     };
     
-    document.getElementById("btnOpcao2").style.display = "none";
+    btn2.style.display = "none";
     modal.style.display = "flex";
 }
 
-// 3. SEGURANÇA MATEMÁTICA (Substitui o "arenadointer... diz")
-function confirmarSeguranca(acao, callback) {
-  const n1 = Math.floor(Math.random() * 9) + 1;
-  const n2 = Math.floor(Math.random() * 9) + 1;
-  const soma = n1 + n2;
-  
-  const modal = document.getElementById("modalDecisao");
-  document.getElementById("tituloDecisao").innerText = "🛡️ Segurança";
-  const texto = document.getElementById("textoDecisao");
-  
-  texto.innerHTML = `Para <b>${acao}</b>, resolva:<br><br><span style="font-size:24px;">${n1} + ${n2} = ?</span><br><br>` +
-                   `<input type="number" id="respSeguranca" inputmode="numeric" style="width:80px; padding:10px; border-radius:8px; border:1px solid #444; background:#222; color:white; text-align:center; font-size:18px;">`;
-
-  const btn1 = document.getElementById("btnOpcao1");
-  btn1.innerText = "CONFIRMAR";
-  btn1.onclick = () => {
-    const resp = document.getElementById("respSeguranca").value;
-    if (parseInt(resp) === soma) {
-      fecharModalDecisao();
-      callback(); 
-    } else {
-      exibirMensagemModal("Erro", "Resposta incorreta!");
-    }
-  };
-
-  document.getElementById("btnOpcao2").style.display = "none"; 
-  modal.style.display = "flex";
-}
-
-function fecharModalDecisao() {
-    document.getElementById("modalDecisao").style.display = "none";
-}
-
-function entrarNoApp() {
-    document.getElementById("lock").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    carregarPerfil();
-    render();
-}
 
 
 /* ================= INICIALIZAÇÃO ================= */
