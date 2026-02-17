@@ -1,4 +1,4 @@
-const CACHE_NAME = "App-financeiro-pro-2026";
+const CACHE_NAME = "Appfinanceiro-pro";
 
 const FILES_TO_CACHE = [
   "/App/",
