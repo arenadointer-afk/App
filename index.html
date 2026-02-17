@@ -9,15 +9,23 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="lock" class="lock" style="background: #0f0f14;">
+  <div style="text-align:center; padding: 20px; max-width: 300px;">
+    <div style="font-size: 60px; margin-bottom: 20px;">🛡️</div>
+    <h2 style="color:white; margin-bottom: 10px;">Acesso Restrito</h2>
+    <p style="color: #888; margin-bottom: 30px; font-size: 14px;">Identifique-se para continuar</p>
+    
+    <button onclick="autenticarBiometria()" style="width: 100%; background:#7b2ff7; color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; margin-bottom: 15px; cursor: pointer;">
+      USAR BIOMETRIA
+    </button>
 
-<div id="lock" class="lock">
-  <div style="background:white; padding:20px; border-radius:15px; text-align:center; width: 80%; max-width:300px;">
-    <h2 style="color:#333; margin-top:0;">🔐 Acesso</h2>
-    <input type="password" id="pin" inputmode="numeric" placeholder="PIN" style="border:1px solid #ccc; font-size:16px; width:100%; box-sizing:border-box; padding:10px; text-align:center;">
-    <br>
-    <button onclick="desbloquear()" style="background:#7b2ff7; color:white; width:100%; margin:15px 0 0 0; cursor:pointer; padding:10px; border-radius:8px; border:none; font-weight:bold;">Entrar</button>
+    <button onclick="pedirPinFallback()" style="width: 100%; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer;">
+      DIGITAR PIN
+    </button>
   </div>
 </div>
+
+
 
 <div id="app" style="display:none">
 

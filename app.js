@@ -1,7 +1,57 @@
-const PIN = "2007";
-let contas = [];
-let logs = []; 
-let filtro = "todas"; 
+const PIN = "2007"; // Definido como string para evitar erro de comparação
+
+/* ================= SISTEMA DE ACESSO CORRIGIDO ================= */
+
+async function autenticarBiometria() {
+    const disponivel = window.PublicKeyCredential && 
+                       await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+
+    if (disponivel) {
+        try {
+            // Chamada nativa para biometria
+            await navigator.credentials.get({
+                publicKey: {
+                    challenge: new Uint8Array([1, 2, 3, 4]),
+                    allowCredentials: [],
+                    userVerification: "required"
+                }
+            });
+            entrarNoApp();
+        } catch (err) {
+            console.warn("Biometria ignorada ou indisponível.");
+            // Não chama o PIN automaticamente aqui para não atrapalhar o usuário
+        }
+    }
+}
+
+function pedirPinFallback() {
+    const tentativa = prompt("🔒 Área Restrita\nDigite o PIN de acesso:");
+    
+    if (tentativa === null) return; // Usuário cancelou
+
+    // Usamos trim() para remover espaços acidentais
+    if (tentativa.trim() === PIN) {
+        entrarNoApp();
+    } else {
+        alert("❌ PIN Incorreto. Tente novamente.");
+    }
+}
+
+function entrarNoApp() {
+    document.getElementById("lock").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    carregarPerfil();
+    render();
+}
+
+// Inicialização ao carregar a página
+document.addEventListener("DOMContentLoaded", () => {
+    if(localStorage.getItem("modoPrivado") === "true") document.body.classList.add("modo-privado");
+    
+    // Tenta a biometria silenciosamente em 1 segundo
+    setTimeout(autenticarBiometria, 1000);
+});
+
 
 /* ================= INICIALIZAÇÃO ================= */
 try {
@@ -442,12 +492,19 @@ function compartilharMes(mes) {
   contasDoMes.forEach(c => {
     if(filtro === "pagas" && !c.paga) return;
     total += c.valor;
+    
+    // Lógica para identificar se é parcelado (tem total de parcelas definido)
+    let infoParcelaZap = "";
+    if (c.totalParcelas && c.totalParcelas > 0) {
+        infoParcelaZap = ` (Parcela ${c.parcelaAtual || 1} de ${c.totalParcelas})`;
+    }
+
     if(c.paga) {
         pago += c.valor;
-        texto += `✅ ${c.nome}: R$ ${c.valor.toFixed(2)}\n`;
+        texto += `✅ ${c.nome}${infoParcelaZap}: R$ ${c.valor.toFixed(2)}\n`;
     } else {
         const [ano, m, dia] = c.vencimento.split('-');
-        texto += `⭕ ${c.nome} (${dia}/${m}): R$ ${c.valor.toFixed(2)}\n`;
+        texto += `⭕ ${c.nome}${infoParcelaZap} (${dia}/${m}): R$ ${c.valor.toFixed(2)}\n`;
     }
   });
 
@@ -455,6 +512,19 @@ function compartilharMes(mes) {
   texto += `\n--------------------\n💰 Total: R$ ${total.toFixed(2)}\n✅ Pago: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${falta.toFixed(2)}`;
   
   enviarWhatsapp(texto);
+}
+
+function compartilharIndividual(i) { 
+    const c = contas[i]; 
+    
+    // Adiciona a info de parcelas se existir
+    let infoParcelaZap = "";
+    if (c.totalParcelas && c.totalParcelas > 0) {
+        infoParcelaZap = `\n🔢 Parcela: ${c.parcelaAtual || 1} de ${c.totalParcelas}`;
+    }
+
+    const t = `🧾 *Conta*\n\n📌 ${c.nome}${infoParcelaZap}\n💰 R$ ${c.valor.toFixed(2)}\n🗓 Vencimento: ${isoParaBR(c.vencimento)}\n${c.paga ? '✅ PAGO' : '⭕ PENDENTE'}`; 
+    enviarWhatsapp(t); 
 }
 
 function compartilharIndividual(i) { 
