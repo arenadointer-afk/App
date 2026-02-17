@@ -111,5 +111,16 @@
     });
   }
 </script>
+<div id="modalDecisao" class="modal" style="display:none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
+  <div class="modal-conteudo" style="background: #1c1c26; padding: 25px; border-radius: 15px; text-align: center; width: 85%; max-width: 320px; border: 1px solid #333;">
+    <h3 id="tituloDecisao" style="color: white; margin-top: 0;">🛡️ Segurança</h3>
+    <p id="textoDecisao" style="color: #ccc; margin: 20px 0;"></p>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <button id="btnOpcao1" style="background: #7b2ff7; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer;">CONFIRMAR</button>
+      <button id="btnOpcao2" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid #444; padding: 12px; border-radius: 8px; cursor: pointer;">CANCELAR</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
