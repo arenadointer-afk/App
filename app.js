@@ -49,7 +49,18 @@ async function cadastrarChaveAcesso() {
         });
 
         if (credential) {
-            exibirMensagemModal("Sucesso", "Digital vinculada! Agora você pode usar o botão Biometria.");
+            // Mudança aqui: Ao clicar em OK no sucesso, ele já destranca o app
+            const modal = document.getElementById("modalDecisao");
+            document.getElementById("tituloDecisao").innerText = "Sucesso ✅";
+            document.getElementById("textoDecisao").innerText = "Digital vinculada! Você será redirecionado.";
+            const btn1 = document.getElementById("btnOpcao1");
+            btn1.innerText = "ENTRAR AGORA";
+            btn1.onclick = () => {
+                fecharModalDecisao();
+                entrarNoApp(); // Entra direto após cadastrar
+            };
+            document.getElementById("btnOpcao2").style.display = "none";
+            modal.style.display = "flex";
         }
     } catch (e) {
         exibirMensagemModal("Erro", "Falha ao cadastrar. Verifique se o bloqueio de tela do celular está ativo.");
