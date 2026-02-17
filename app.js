@@ -1,6 +1,4 @@
-const PIN = "2007"; // Definido como string para evitar erro de comparação
-
-/* ================= SISTEMA DE ACESSO CORRIGIDO ================= */
+const PIN = "2007"; 
 
 async function autenticarBiometria() {
     const disponivel = window.PublicKeyCredential && 
@@ -8,49 +6,49 @@ async function autenticarBiometria() {
 
     if (disponivel) {
         try {
-            // Chamada nativa para biometria
+            // Tenta verificar digital já existente
             await navigator.credentials.get({
-                publicKey: {
-                    challenge: new Uint8Array([1, 2, 3, 4]),
-                    allowCredentials: [],
-                    userVerification: "required"
-                }
+                publicKey: { challenge: new Uint8Array([1,2,3,4]), userVerification: "required" }
             });
             entrarNoApp();
         } catch (err) {
-            console.warn("Biometria ignorada ou indisponível.");
-            // Não chama o PIN automaticamente aqui para não atrapalhar o usuário
+            // Se cair aqui (como na sua foto), oferecemos o cadastro ou PIN
+            console.log("Sem chave ou cancelado");
+            const querCadastrar = confirm("Deseja cadastrar sua digital para acessos futuros?");
+            if (querCadastrar) cadastrarChaveAcesso();
+            else pedirPinFallback();
         }
+    } else {
+        pedirPinFallback();
     }
+}
+
+// Função para "Criar" a chave no seu Android a primeira vez
+async function cadastrarChaveAcesso() {
+    try {
+        await navigator.credentials.create({
+            publicKey: {
+                challenge: new Uint8Array([1,2,3,4]),
+                rp: { name: "Minhas Contas" },
+                user: { id: new Uint8Array([1]), name: "Sutello", displayName: "Sutello" },
+                pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+                authenticatorSelection: { authenticatorAttachment: "platform" }
+            }
+        });
+        alert("Digital cadastrada com sucesso! ✅");
+        entrarNoApp();
+    } catch (e) { alert("Falha ao cadastrar digital."); }
 }
 
 function pedirPinFallback() {
-    const tentativa = prompt("🔒 Área Restrita\nDigite o PIN de acesso:");
-    
-    if (tentativa === null) return; // Usuário cancelou
-
-    // Usamos trim() para remover espaços acidentais
-    if (tentativa.trim() === PIN) {
+    const tentativa = prompt("🔒 Digite o PIN de acesso:");
+    if (tentativa === null) return;
+    if (tentativa.trim() === PIN) { // .trim() resolve o erro de espaços
         entrarNoApp();
     } else {
-        alert("❌ PIN Incorreto. Tente novamente.");
+        alert("❌ PIN Incorreto.");
     }
 }
-
-function entrarNoApp() {
-    document.getElementById("lock").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    carregarPerfil();
-    render();
-}
-
-// Inicialização ao carregar a página
-document.addEventListener("DOMContentLoaded", () => {
-    if(localStorage.getItem("modoPrivado") === "true") document.body.classList.add("modo-privado");
-    
-    // Tenta a biometria silenciosamente em 1 segundo
-    setTimeout(autenticarBiometria, 1000);
-});
 
 
 /* ================= INICIALIZAÇÃO ================= */
