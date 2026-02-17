@@ -1,38 +1,38 @@
-/* ================= ACESSO E SEGURANÇA BLINDADOS ================= */
+/* ================= CONFIGURAÇÕES E VARIÁVEIS GLOBAIS ================= */
 const PIN = "2007"; 
+let contas = [];
+let logs = [];
+let filtro = "todas";
 
-// 1. Função do Botão "USAR BIOMETRIA"
+/* ================= SISTEMA DE ACESSO (LOCK SCREEN) ================= */
+
+// 1. BIOMETRIA: Tenta autenticar ou oferece cadastro se não existir chave
 async function acaoBotaoBiometria() {
     const disponivel = window.PublicKeyCredential && 
                        await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     
     if (!disponivel) {
-        exibirMensagemModal("Aviso", "Biometria não disponível.");
+        exibirMensagemModal("Aviso", "Sensor biométrico não disponível.");
         return;
     }
 
     try {
-        // Tenta buscar a digital
-        const credential = await navigator.credentials.get({
-            publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), userVerification: "required" }
+        const challenge = crypto.getRandomValues(new Uint8Array(32));
+        await navigator.credentials.get({
+            publicKey: { challenge: challenge, userVerification: "required" }
         });
-        
-        if (credential) {
-            entrarNoApp(); // SÓ ENTRA SE TIVER SUCESSO
-        }
+        entrarNoApp();
     } catch (e) {
-        console.log("Falha na leitura:", e);
-        // Se der erro de "Nenhuma chave", ele pergunta se quer cadastrar.
-        // Se o cadastro falhar, ele NÃO entra no app.
+        // Se falhar por falta de chave, convida para cadastrar no modal roxo
         mostrarConfirmacaoModal(
-            "Digital não encontrada", 
-            "Não existe digital vinculada. Deseja cadastrar agora?", 
+            "Vincular Digital", 
+            "Deseja cadastrar sua digital para entrar mais rápido nas próximas vezes?", 
             cadastrarChaveAcesso
         );
     }
 }
 
-// 2. Cadastro da Digital (Corrigido para o GitHub Pages)
+// 2. CADASTRO: Cria a chave de acesso no Android
 async function cadastrarChaveAcesso() {
     try {
         const challenge = crypto.getRandomValues(new Uint8Array(32));
@@ -49,17 +49,14 @@ async function cadastrarChaveAcesso() {
         });
 
         if (credential) {
-            exibirMensagemModal("Sucesso", "Digital cadastrada! Use-a para entrar.");
-            // Opcional: entrarNoApp(); ou pedir para ele clicar em biometria de novo
+            exibirMensagemModal("Sucesso", "Digital vinculada! Agora você pode usar o botão Biometria.");
         }
     } catch (e) {
-        console.error("Erro no cadastro:", e);
-        exibirMensagemModal("Erro", "Falha ao cadastrar digital. Use o PIN.");
-        // AQUI ESTÁ A CORREÇÃO: Não tem "entrarNoApp()" aqui, então ele fica travado na tela de lock.
+        exibirMensagemModal("Erro", "Falha ao cadastrar. Verifique se o bloqueio de tela do celular está ativo.");
     }
 }
 
-// 3. PIN (Corrigido para validar antes de entrar)
+// 3. PIN: Valida o código 2007 e destranca o app
 function pedirPinFallback() {
     const modal = document.getElementById("modalDecisao");
     const titulo = document.getElementById("tituloDecisao");
@@ -75,10 +72,10 @@ function pedirPinFallback() {
     
     btn1.innerText = "ENTRAR";
     btn1.onclick = () => {
-        const input = document.getElementById("inputPinAcesso");
-        if (input && input.value.trim() === PIN) {
+        const val = document.getElementById("inputPinAcesso").value;
+        if (val.trim() === PIN) {
             fecharModalDecisao();
-            entrarNoApp(); // SÓ ENTRA SE O PIN FOR EXATO
+            entrarNoApp();
         } else {
             exibirMensagemModal("Erro", "PIN Incorreto!");
         }
@@ -88,22 +85,98 @@ function pedirPinFallback() {
     modal.style.display = "flex";
 }
 
-
-
-/* ================= INICIALIZAÇÃO ================= */
-try {
-  const dadosLocais = localStorage.getItem("contas");
-  if (dadosLocais) {
-      contas = JSON.parse(dadosLocais) || [];
-      contas.forEach(c => { if(!c.id) c.id = Date.now() + Math.random(); });
-  }
-  const logsLocais = localStorage.getItem("logs");
-  if (logsLocais) logs = JSON.parse(logsLocais) || [];
-} catch (error) {
-  console.error("Erro dados:", error);
-  contas = []; logs = [];
+function entrarNoApp() {
+    document.getElementById("lock").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    carregarPerfil();
+    render();
 }
 
+/* ================= SEGURANÇA (MATEMÁTICA) ================= */
+
+// Substitui o prompt nativo para remover o nome do site no topo
+function confirmarSeguranca(acao, callback) {
+  const n1 = Math.floor(Math.random() * 9) + 1;
+  const n2 = Math.floor(Math.random() * 9) + 1;
+  const soma = n1 + n2;
+  
+  const modal = document.getElementById("modalDecisao");
+  document.getElementById("tituloDecisao").innerText = "🛡️ Segurança";
+  const texto = document.getElementById("textoDecisao");
+  
+  texto.innerHTML = `Para <b>${acao}</b>, resolva:<br><br><span style="font-size:28px; color:white;">${n1} + ${n2} = ?</span><br><br>` +
+                   `<input type="number" id="respSeguranca" inputmode="numeric" style="width:100px; padding:12px; border-radius:10px; border:1px solid #444; background:#222; color:white; text-align:center; font-size:22px;">`;
+
+  const btn1 = document.getElementById("btnOpcao1");
+  btn1.innerText = "CONFIRMAR";
+  btn1.onclick = () => {
+    const resp = document.getElementById("respSeguranca").value;
+    if (parseInt(resp) === soma) {
+      fecharModalDecisao();
+      callback(); 
+    } else {
+      exibirMensagemModal("Erro", "Resposta incorreta!");
+    }
+  };
+
+  document.getElementById("btnOpcao2").style.display = "none"; 
+  modal.style.display = "flex";
+}
+
+/* ================= UTILITÁRIOS DE INTERFACE ================= */
+
+function exibirMensagemModal(titulo, mensagem) {
+    const modal = document.getElementById("modalDecisao");
+    document.getElementById("tituloDecisao").innerText = titulo;
+    document.getElementById("textoDecisao").innerText = mensagem;
+    const btn1 = document.getElementById("btnOpcao1");
+    btn1.innerText = "OK";
+    btn1.onclick = fecharModalDecisao;
+    document.getElementById("btnOpcao2").style.display = "none";
+    modal.style.display = "flex";
+}
+
+function mostrarConfirmacaoModal(titulo, mensagem, callback) {
+    const modal = document.getElementById("modalDecisao");
+    document.getElementById("tituloDecisao").innerText = titulo;
+    document.getElementById("textoDecisao").innerText = mensagem;
+    const btn1 = document.getElementById("btnOpcao1");
+    const btn2 = document.getElementById("btnOpcao2");
+    
+    btn1.innerText = "SIM";
+    btn1.onclick = () => { fecharModalDecisao(); callback(); };
+    
+    btn2.style.display = "block";
+    btn2.innerText = "NÃO";
+    btn2.onclick = fecharModalDecisao;
+    modal.style.display = "flex";
+}
+
+function fecharModalDecisao() {
+    document.getElementById("modalDecisao").style.display = "none";
+}
+
+/* ================= INICIALIZAÇÃO E CARREGAMENTO ================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+    try {
+        const dadosLocais = localStorage.getItem("contas");
+        if (dadosLocais) contas = JSON.parse(dadosLocais);
+        
+        const logsLocais = localStorage.getItem("logs");
+        if (logsLocais) logs = JSON.parse(logsLocais);
+        
+        if(localStorage.getItem("modoPrivado") === "true") document.body.classList.add("modo-privado");
+    } catch (e) { console.error("Erro ao carregar dados", e); }
+});
+
+function carregarPerfil() {
+  const f = localStorage.getItem("fotoPerfil");
+  const img = document.getElementById("fotoPerfil");
+  if (f && img) img.src = f;
+}
+
+// ... Restante das suas funções (render, salvar, etc) devem vir abaixo ...
 /* ================= UTILITÁRIOS ================= */
 function getIcone(nome) {
   const n = nome.toLowerCase();
