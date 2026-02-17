@@ -4,76 +4,75 @@ let contas = [];
 let logs = [];
 let filtro = "todas";
 
+// ID fixo para garantir que o Android salve a digital permanentemente
+const BIOMETRIA_USER_ID = Uint8Array.from("sutello-contas-fixo", c => c.charCodeAt(0));
+
 /* ================= SISTEMA DE ACESSO (LOCK SCREEN) ================= */
 
-// 1. BIOMETRIA: Tenta autenticar ou oferece cadastro se não existir chave
+// 1. BIOMETRIA PERSISTENTE: Tenta logar ou oferece cadastro se não existir chave
 async function acaoBotaoBiometria() {
     const disponivel = window.PublicKeyCredential && 
                        await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     
     if (!disponivel) {
-        exibirMensagemModal("Aviso", "Sensor biométrico não disponível.");
+        exibirMensagemModal("Aviso", "Sensor biométrico não disponível neste aparelho.");
         return;
     }
 
     try {
         const challenge = crypto.getRandomValues(new Uint8Array(32));
-        await navigator.credentials.get({
-            publicKey: { challenge: challenge, userVerification: "required" }
+        const credential = await navigator.credentials.get({
+            publicKey: { 
+                challenge: challenge, 
+                userVerification: "required",
+                timeout: 60000 
+            }
         });
-        entrarNoApp();
+        if (credential) entrarNoApp();
     } catch (e) {
-        // Se falhar por falta de chave, convida para cadastrar no modal roxo
+        console.log("Falha na biometria:", e);
+        // Se não houver digital, convida para cadastrar no modal roxo
         mostrarConfirmacaoModal(
             "Vincular Digital", 
-            "Deseja cadastrar sua digital para entrar mais rápido nas próximas vezes?", 
+            "Deseja salvar sua digital para entrar mais rápido?", 
             cadastrarChaveAcesso
         );
     }
 }
 
-// 2. CADASTRO: Cria a chave de acesso no Android
+// 2. CADASTRO: Cria a chave de acesso definitiva no Android
 async function cadastrarChaveAcesso() {
     try {
         const challenge = crypto.getRandomValues(new Uint8Array(32));
-        const userId = crypto.getRandomValues(new Uint8Array(16));
-
         const credential = await navigator.credentials.create({
             publicKey: {
                 challenge: challenge,
                 rp: { name: "Minhas Contas" }, 
-                user: { id: userId, name: "sutello", displayName: "Sutello" },
+                user: { id: BIOMETRIA_USER_ID, name: "sutello@contas", displayName: "Sutello" },
                 pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-                authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }
+                authenticatorSelection: { 
+                    authenticatorAttachment: "platform", 
+                    userVerification: "required",
+                    residentKey: "required" // Isso garante que a digital fique salva
+                },
+                timeout: 60000
             }
         });
 
         if (credential) {
-            // Mudança aqui: Ao clicar em OK no sucesso, ele já destranca o app
-            const modal = document.getElementById("modalDecisao");
-            document.getElementById("tituloDecisao").innerText = "Sucesso ✅";
-            document.getElementById("textoDecisao").innerText = "Digital vinculada! Você será redirecionado.";
-            const btn1 = document.getElementById("btnOpcao1");
-            btn1.innerText = "ENTRAR AGORA";
-            btn1.onclick = () => {
-                fecharModalDecisao();
-                entrarNoApp(); // Entra direto após cadastrar
-            };
-            document.getElementById("btnOpcao2").style.display = "none";
-            modal.style.display = "flex";
+            exibirMensagemModal("Sucesso ✅", "Digital vinculada! Agora você pode entrar clicando em Usar Biometria.");
         }
     } catch (e) {
-        exibirMensagemModal("Erro", "Falha ao cadastrar. Verifique se o bloqueio de tela do celular está ativo.");
+        exibirMensagemModal("Erro", "Falha ao vincular digital. Verifique o bloqueio de tela do celular.");
     }
 }
 
-// 3. PIN: Valida o código 2007 e destranca o app
+// 3. PIN CORRIGIDO: Valida o código 2007 e destranca o app
 function pedirPinFallback() {
     const modal = document.getElementById("modalDecisao");
     const titulo = document.getElementById("tituloDecisao");
     const texto = document.getElementById("textoDecisao");
     const btn1 = document.getElementById("btnOpcao1");
-    const btn2 = document.getElementById("btnOpcao2");
 
     titulo.innerText = "Acesso via PIN";
     texto.innerHTML = `
@@ -92,7 +91,7 @@ function pedirPinFallback() {
         }
     };
     
-    btn2.style.display = "none";
+    document.getElementById("btnOpcao2").style.display = "none";
     modal.style.display = "flex";
 }
 
@@ -105,7 +104,7 @@ function entrarNoApp() {
 
 /* ================= SEGURANÇA (MATEMÁTICA) ================= */
 
-// Substitui o prompt nativo para remover o nome do site no topo
+// Remove o aviso com o nome do site movendo a conta para o modal
 function confirmarSeguranca(acao, callback) {
   const n1 = Math.floor(Math.random() * 9) + 1;
   const n2 = Math.floor(Math.random() * 9) + 1;
@@ -115,7 +114,7 @@ function confirmarSeguranca(acao, callback) {
   document.getElementById("tituloDecisao").innerText = "🛡️ Segurança";
   const texto = document.getElementById("textoDecisao");
   
-  texto.innerHTML = `Para <b>${acao}</b>, resolva:<br><br><span style="font-size:28px; color:white;">${n1} + ${n2} = ?</span><br><br>` +
+  texto.innerHTML = `Resolva para <b>${acao}</b>:<br><br><span style="font-size:28px; color:white;">${n1} + ${n2} = ?</span><br><br>` +
                    `<input type="number" id="respSeguranca" inputmode="numeric" style="width:100px; padding:12px; border-radius:10px; border:1px solid #444; background:#222; color:white; text-align:center; font-size:22px;">`;
 
   const btn1 = document.getElementById("btnOpcao1");
@@ -166,141 +165,25 @@ function mostrarConfirmacaoModal(titulo, mensagem, callback) {
 function fecharModalDecisao() {
     document.getElementById("modalDecisao").style.display = "none";
 }
+/* ================= RENDERIZAÇÃO DA INTERFACE ================= */
 
-/* ================= INICIALIZAÇÃO E CARREGAMENTO ================= */
-
-document.addEventListener("DOMContentLoaded", () => {
-    try {
-        const dadosLocais = localStorage.getItem("contas");
-        if (dadosLocais) contas = JSON.parse(dadosLocais);
-        
-        const logsLocais = localStorage.getItem("logs");
-        if (logsLocais) logs = JSON.parse(logsLocais);
-        
-        if(localStorage.getItem("modoPrivado") === "true") document.body.classList.add("modo-privado");
-    } catch (e) { console.error("Erro ao carregar dados", e); }
-});
-
-function carregarPerfil() {
-  const f = localStorage.getItem("fotoPerfil");
-  const img = document.getElementById("fotoPerfil");
-  if (f && img) img.src = f;
-}
-
-// ... Restante das suas funções (render, salvar, etc) devem vir abaixo ...
-/* ================= UTILITÁRIOS ================= */
-function getIcone(nome) {
-  const n = nome.toLowerCase();
-  if (n.includes("luz") || n.includes("energia") || n.includes("cemig") || n.includes("enel")) return "💡";
-  if (n.includes("agua") || n.includes("água") || n.includes("sanepar") || n.includes("sabesp")) return "💧";
-  if (n.includes("net") || n.includes("wifi") || n.includes("vivo") || n.includes("claro") || n.includes("tim")) return "🌐";
-  if (n.includes("aluguel") || n.includes("condominio") || n.includes("casa")) return "🏠";
-  if (n.includes("mercado") || n.includes("compras") || n.includes("ifood")) return "🛒";
-  if (n.includes("cartao") || n.includes("nubank") || n.includes("inter") || n.includes("fatura")) return "💳";
-  if (n.includes("carro") || n.includes("gasolina") || n.includes("uber") || n.includes("ipva")) return "🚗";
-  if (n.includes("faculdade") || n.includes("curso") || n.includes("escola")) return "🎓";
-  if (n.includes("streaming") || n.includes("netflix") || n.includes("spotify") || n.includes("amazon")) return "🎬";
-  if (n.includes("academia") || n.includes("smart")) return "💪";
-  return "📄"; 
-}
-
-const isoParaBR = d => { if(!d) return "--/--/----"; const [a,m,di] = d.split("-"); return `${di}/${m}/${a}`; };
-const brParaISO = d => { if(!d) return ""; const [di,m,a] = d.split("/"); return `${a}-${m}-${di}`; };
-const proximoMes = d => { const data = new Date(d); data.setMonth(data.getMonth() + 1); return data.toISOString().split("T")[0]; };
-const mesAno = d => { const [a,m] = d.split("-"); return `${m}/${a}`; };
-
-function infoVencimento(dataISO) {
-  const hoje = new Date(); hoje.setHours(0,0,0,0);
-  const venc = new Date(dataISO); venc.setHours(0,0,0,0);
-  const diff = Math.floor((venc - hoje) / (1000 * 60 * 60 * 24));
-  if (diff < 0) return { texto: "VENCIDO", classe: "vencido" };
-  if (diff === 0) return { texto: "vence hoje", classe: "hoje" };
-  if (diff === 1) return { texto: "vence amanhã", classe: "amanha" };
-  return { texto: `vence em: ${diff} dias`, classe: "normal" };
-}
-
-function togglePrivacidade() {
-    document.body.classList.toggle("modo-privado");
-    localStorage.setItem("modoPrivado", document.body.classList.contains("modo-privado"));
-    const btn = document.getElementById("btnPrivacidade");
-    if(btn) btn.innerHTML = document.body.classList.contains("modo-privado") ? "🙈" : "👁️";
-}
-
-function toggleMenu(id) {
-    const menu = document.getElementById(`menu-${id}`);
-    const btn = document.getElementById(`btn-expand-${id}`);
-    if (menu.style.display === "flex") {
-        menu.style.display = "none";
-        btn.classList.remove("aberto");
-        btn.innerHTML = "🔻";
-    } else {
-        menu.style.display = "flex";
-        btn.classList.add("aberto");
-        btn.innerHTML = "🔺";
-    }
-}
-
-/* ================= SISTEMA ================= */
-function confirmarSeguranca(acao) {
-  const n1 = Math.floor(Math.random() * 9) + 1;
-  const n2 = Math.floor(Math.random() * 9) + 1;
-  const soma = n1 + n2;
-  const resposta = prompt(`🔒 Segurança para ${acao}:\nQuanto é ${n1} + ${n2}?`);
-  return (resposta && parseInt(resposta) === soma);
-}
-
-function salvar() {
-  try {
-    localStorage.setItem("contas", JSON.stringify(contas));
-    localStorage.setItem("logs", JSON.stringify(logs));
-    const isLogAberto = document.getElementById("historicoLogs") && document.getElementById("historicoLogs").style.display === "block";
-    if(!isLogAberto) render(); 
-  } catch (e) { alert("Erro ao salvar."); }
-}
-
-function registrarLog(acao, detalhe, backupData = null, relatedId = null) {
-    const agora = new Date();
-    logs.unshift({ id: Date.now()+Math.random(), data: agora.toISOString(), acao, detalhe, backup: backupData, relatedId });
-    if(logs.length > 50) logs.pop();
-    salvar();
-}
-
-function desfazerAcaoLog(logId) {
-    const logIndex = logs.findIndex(l => l.id === logId);
-    if(logIndex === -1) return;
-    const log = logs[logIndex];
-    if (!log.backup) { alert("Irreversível."); return; }
-    if (!confirm(`Desfazer: "${log.acao}"?`)) return;
-
-    if (log.relatedId) {
-        const relatedIndex = contas.findIndex(c => c.id === log.relatedId);
-        if (relatedIndex !== -1) contas.splice(relatedIndex, 1);
-    }
-    if (log.acao.includes("EXCLUÍDO")) {
-        contas.push(log.backup);
-    } else {
-        const contaIndex = contas.findIndex(c => c.id === log.backup.id);
-        if (contaIndex !== -1) contas[contaIndex] = log.backup;
-        else contas.push(log.backup);
-    }
-    logs.splice(logIndex, 1);
-    salvar(); abrirHistorico(); alert("Desfeito! ↩️");
-}
-
-/* ================= RENDERIZAÇÃO ================= */
 function render() {
   const lista = document.getElementById("lista");
   if(!lista) return;
   lista.innerHTML = "";
 
+  // Adiciona campo de busca e botão de privacidade se não existirem
   if(!document.getElementById("btnPrivacidade")) {
       const divFiltros = document.querySelector(".filtros");
-      if(divFiltros && !divFiltros.previousElementSibling.classList.contains("busca-container")) {
+      if(divFiltros) {
           const divBusca = document.createElement("div");
           divBusca.className = "busca-container";
           divBusca.style.cssText = "display:flex; gap:10px; padding:0 15px; margin-top:10px;";
           const iconeOlho = document.body.classList.contains("modo-privado") ? "🙈" : "👁️";
-          divBusca.innerHTML = `<input type="text" id="inputBusca" placeholder="🔍 Buscar..." onkeyup="render()" style="flex:1; padding:10px; border-radius:20px; border:1px solid #444; background:#222; color:white; text-align:center;"><button id="btnPrivacidade" onclick="togglePrivacidade()" style="background:none; border:none; font-size:22px; cursor:pointer;">${iconeOlho}</button>`;
+          divBusca.innerHTML = `
+            <input type="text" id="inputBusca" placeholder="🔍 Buscar conta..." onkeyup="render()" 
+            style="flex:1; padding:10px; border-radius:20px; border:1px solid #444; background:#222; color:white; text-align:center;">
+            <button id="btnPrivacidade" onclick="togglePrivacidade()" style="background:none; border:none; font-size:22px; cursor:pointer;">${iconeOlho}</button>`;
           divFiltros.parentNode.insertBefore(divBusca, divFiltros);
       }
   }
@@ -309,6 +192,7 @@ function render() {
   const contasComIndex = contas.map((c, i) => ({...c, originalIndex: i}));
   const grupos = {};
   
+  // Agrupa contas por Mês/Ano
   [...contasComIndex].sort((a,b) => new Date(a.vencimento) - new Date(b.vencimento)).forEach(c => {
       const k = mesAno(c.vencimento);
       if(!grupos[k]) grupos[k] = [];
@@ -316,7 +200,7 @@ function render() {
   });
 
   if (Object.keys(grupos).length === 0) {
-      lista.innerHTML = `<div style="text-align:center; padding:30px; color:#666;">Nenhuma conta encontrada.</div>`;
+      lista.innerHTML = `<div style="text-align:center; padding:30px; color:#666;">Nenhuma conta cadastrada.</div>`;
       return;
   }
 
@@ -330,21 +214,30 @@ function render() {
     const contasVisiveis = todasDoMes.filter(c => {
         if (termo) return c.nome.toLowerCase().includes(termo);
         if (filtro === "pagas") return c.paga;
-        if (filtro === "todas") return !c.oculta; 
-        return true;
+        return !c.oculta; 
     });
 
     if (!termo && contasVisiveis.length === 0) return;
 
+    // Cabeçalho do Mês e Barra de Progresso
     const bloco = document.createElement("div");
     bloco.className = "mes-container";
     bloco.innerHTML = `
-      <div class="cabecalho-mes"><h3>📅 ${k}</h3><div class="acoes-mes"><button onclick="compartilharMes('${k}')">📤</button><button onclick="baixarPdfMes('${k}')">📄</button></div></div>
+      <div class="cabecalho-mes">
+        <h3>📅 ${k}</h3>
+        <div class="acoes-mes">
+            <button onclick="compartilharMes('${k}')">📤</button>
+            <button onclick="baixarPdfMes('${k}')">📄</button>
+        </div>
+      </div>
       <div class="resumo-mes">
           <div class="resumo-item"><small>Total</small><strong class="texto-branco">R$ ${totalMes.toFixed(2)}</strong></div>
           <div class="resumo-item"><small>Pago</small><strong class="texto-verde">R$ ${pagoMes.toFixed(2)}</strong></div>
           <div class="resumo-item"><small>Falta</small><strong class="texto-vermelho">R$ ${faltaMes.toFixed(2)}</strong></div>
-          <div class="barra-container"><div class="barra-fundo"><div class="barra-preenchimento" style="width: ${pct}%"></div></div><div class="barra-texto">${pct.toFixed(0)}% Pago</div></div>
+          <div class="barra-container">
+            <div class="barra-fundo"><div class="barra-preenchimento" style="width: ${pct}%"></div></div>
+            <div class="barra-texto">${pct.toFixed(0)}% Pago</div>
+          </div>
       </div>
     `;
 
@@ -352,471 +245,155 @@ function render() {
       const div = document.createElement("div");
       const vencInfo = infoVencimento(c.vencimento);
       const icone = getIcone(c.nome); 
+      
       let classes = "conta";
       if (c.paga) classes += " verde";
-      else if (vencInfo.classe === "vencido") classes += " atrasada";
-      const badgeHtml = (!c.paga && vencInfo.classe === "vencido") ? `<span class="badge-vencido">VENCIDO</span>` : ``;
-      
-      let htmlParcelas = "";
-      if (c.recorrente && c.totalParcelas) {
-          const valorJaPago = (c.parcelaAtual - 1) * c.valor; 
-          htmlParcelas = `<div class="info-parcelas"><div>🔢 ${c.parcelaAtual}/${c.totalParcelas}</div><div>💰 Pago: R$ ${valorJaPago.toFixed(2)}</div></div>`;
-      } else if (c.recorrente) htmlParcelas = `<div class="info-parcelas"><div>🔄 Recorrente</div></div>`;
+      else if (vencInfo.classe === "vencido") classes += " atrasada"; // Animação de pulso se vencido
 
-      let obsHtml = c.obs ? `<div style="font-size:11px; color:#ff9800; margin-top:5px;">⚠️ ${c.obs}</div>` : "";
-      
-      let btnPrincipal = !c.paga ? `<button class="btn-pagar" onclick="iniciarPagamento(${c.originalIndex})">✅ PAGAR</button>` : `<button class="btn-reverter" onclick="desfazerPagamento(${c.originalIndex})">↩️ DESFAZER</button>`;
-
-      const menuId = `menu-${c.id}`; 
-      const btnExpandId = `btn-expand-${c.id}`;
-      const menuBotoes = `
-        <button onclick="copiarPix(${c.originalIndex})">📋 Copiar Pix</button>
-        <button onclick="adiarConta(${c.originalIndex})">⏩ Jogar p/ Mês Seguinte</button>
-        <button onclick="clonarConta(${c.originalIndex})">🧬 Clonar Conta</button>
-        ${!c.paga ? `<button onclick="ocultarConta(${c.originalIndex})">👁 Arquivar (Ocultar)</button>` : ''}
-        <button onclick="editarConta(${c.originalIndex})">✏️ Editar Dados</button>
-        <button onclick="gerarComprovanteIndividual(${c.originalIndex})">📄 Gerar PDF</button>
-        <button onclick="compartilharIndividual(${c.originalIndex})">📱 Mandar no Zap</button>
-        <button onclick="deletarConta(${c.originalIndex})" style="color:#ef5350; border-color:#ef5350;">🗑️ Excluir Definitivamente</button>
-      `;
-
+      const menuId = `menu-${c.id}`;
       div.className = classes;
       div.innerHTML = `
-        ${badgeHtml}
+        ${(!c.paga && vencInfo.classe === "vencido") ? `<span class="badge-vencido">VENCIDO</span>` : ``}
         <div style="font-size: 1.1em; margin-bottom: 5px;"><strong>${icone} ${c.nome}</strong></div>
         <div style="font-size: 1.2em; font-weight: bold;">💰 R$ ${c.valor.toFixed(2)}</div>
         <div style="margin-top: 5px;">📅 ${isoParaBR(c.vencimento)}</div>
-        ${obsHtml}
         <small class="vencimento ${vencInfo.classe}">${c.paga ? "PAGO ✅" : vencInfo.texto}</small>
-        ${htmlParcelas}
-        <div class="acoes-principal">${btnPrincipal}<button id="${btnExpandId}" class="btn-expandir" onclick="toggleMenu('${c.id}')">🔻</button></div>
-        <div id="${menuId}" class="menu-secundario">${menuBotoes}</div>
+        
+        <div class="acoes-principal">
+            ${!c.paga ? 
+                `<button class="btn-pagar" onclick="iniciarPagamento(${c.originalIndex})">✅ PAGAR</button>` : 
+                `<button class="btn-reverter" onclick="desfazerPagamento(${c.originalIndex})">↩️ DESFAZER</button>`
+            }
+            <button id="btn-expand-${c.id}" class="btn-expandir" onclick="toggleMenu('${c.id}')">🔻</button>
+        </div>
+        
+        <div id="${menuId}" class="menu-secundario">
+            <button onclick="copiarPix(${c.originalIndex})">📋 Copiar Pix</button>
+            <button onclick="editarConta(${c.originalIndex})">✏️ Editar</button>
+            <button onclick="compartilharIndividual(${c.originalIndex})">📱 WhatsApp</button>
+            <button onclick="deletarConta(${c.originalIndex})" style="color:#ef5350;">🗑️ Excluir</button>
+        </div>
       `;
       bloco.appendChild(div);
     });
     lista.appendChild(bloco);
   });
 }
-/* ================= PAGAMENTO ================= */
-function iniciarPagamento(i) {
-    if (!confirmarSeguranca("PAGAR CONTA")) return;
-    const c = contas[i];
-    const tipo = prompt(`Valor: R$ ${c.valor.toFixed(2)}\n\n1 - TOTAL\n2 - PARCIAL`, "1");
-    const backup = JSON.parse(JSON.stringify(c));
 
-    if (tipo === "1") {
-        c.paga = true; c.oculta = true; c.dataPagamento = new Date().toISOString().split("T")[0];
-        let idNovaConta = null;
-        if (c.recorrente) {
-            let gerar = true; let novaParcela = (c.parcelaAtual || 1) + 1; let totalP = c.totalParcelas || 0;
-            if (typeof c.repeticoes === "number") { c.repeticoes--; if (c.repeticoes <= 0) gerar = false; }
-            if (totalP > 0 && novaParcela > totalP) gerar = false;
-            if (gerar) {
-                const nova = { ...c, id: Date.now()+Math.random(), paga: false, oculta: false, dataPagamento: null, obs: null, vencimento: proximoMes(c.vencimento), parcelaAtual: novaParcela, totalParcelas: totalP };
-                contas.push(nova); idNovaConta = nova.id;
-            }
-        }
-        registrarLog("PAGAMENTO TOTAL", `Pagou ${c.nome}`, backup, idNovaConta);
-        salvar(); alert("Pago! ✅");
+/* ================= OPERAÇÕES DE CONTA (CRUD) ================= */
 
-    } else if (tipo === "2") {
-        const valorPagoStr = prompt("Valor pago agora:", c.valor);
-        if(!valorPagoStr) return;
-        const valorPago = parseFloat(valorPagoStr.replace(",", "."));
-        if(isNaN(valorPago) || valorPago <= 0 || valorPago >= c.valor) { alert("Valor inválido."); return; }
-
-        const restante = c.valor - valorPago;
-        const mover = confirm(`Restam R$ ${restante.toFixed(2)}.\nJogar para o PRÓXIMO mês?\n\nOK = Sim\nCancelar = Não (Mantém neste)`);
-
-        const regPag = { ...c, id: Date.now()+Math.random(), nome: `${c.nome} (Parcial)`, valor: valorPago, paga: true, oculta: true, dataPagamento: new Date().toISOString().split("T")[0], obs: `Pagamento parcial. Restou R$ ${restante.toFixed(2)}` };
-        contas.push(regPag);
-
-        c.valor = restante; c.obs = `Restante parcial.`;
-        if (mover) { c.vencimento = proximoMes(c.vencimento); c.obs += ` Adiado.`; }
-        
-        registrarLog("PAGAMENTO PARCIAL", `${c.nome}: Pagou R$ ${valorPago}, restou R$ ${restante}`, backup, regPag.id);
-        salvar(); alert("Parcial registrado! ⚠️");
-    }
+function salvar() {
+  localStorage.setItem("contas", JSON.stringify(contas));
+  localStorage.setItem("logs", JSON.stringify(logs));
+  render();
 }
 
-/* ================= HISTÓRICO GLOBAL (LOGS) ================= */
-function abrirHistorico() {
-    document.getElementById("lista").style.display = "none";
-    document.querySelector(".filtros").style.display = "none";
-    const mesContainer = document.querySelector(".mes-container"); if(mesContainer) mesContainer.style.display = "none";
-    
-    document.getElementById("historicoLogs").style.display = "block";
-    const listaLogs = document.getElementById("listaLogs");
-    listaLogs.innerHTML = "";
-    listaLogs.innerHTML += `<button onclick="compartilharLog()" style="width:100%; margin-bottom:15px; background:#0288d1; color:white; border:none; padding:10px; border-radius:8px;">📤 Compartilhar Relatório de Logs</button>`;
-
-    if(logs.length === 0) { listaLogs.innerHTML += "<p style='text-align:center; color:#888;'>Vazio.</p>"; return; }
-
-    logs.forEach(log => {
-        const item = document.createElement("div");
-        item.style.cssText = "background:#222; margin:5px 0; padding:10px; border-radius:8px; border-left:3px solid #7b2ff7; display:flex; justify-content:space-between; align-items:center;";
-        const btnDesfazer = log.backup ? `<button class="btn-undo" onclick="desfazerAcaoLog(${log.id})">↩️ Desfazer</button>` : "";
-        item.innerHTML = `<div><div style="font-size:10px; color:#aaa;">${new Date(log.data).toLocaleString()}</div><div style="font-weight:bold; color:white;">${log.acao}</div><div style="color:#ddd; font-size:12px;">${log.detalhe}</div></div><div>${btnDesfazer}</div>`;
-        listaLogs.appendChild(item);
-    });
-}
-
-function compartilharLog() {
-    let texto = "📜 *Log de Atividades*\n\n";
-    logs.forEach(l => { texto += `[${new Date(l.data).toLocaleDateString()}] ${l.acao}: ${l.detalhe}\n`; });
-    enviarWhatsapp(texto);
-}
-
-function fecharHistoricoLogs() {
-    document.getElementById("historicoLogs").style.display = "none";
-    document.getElementById("lista").style.display = "block";
-    document.querySelector(".filtros").style.display = "flex";
-    render(); 
-}
-function apagarLog(i) { if(confirm("Apagar registro?")) { logs.splice(i, 1); salvar(); abrirHistorico(); } }
-function limparLogs(tipo) {
-    if(!confirm("Limpar?")) return;
-    const agora = new Date();
-    if (tipo === "tudo") logs = [];
-    else logs = logs.filter(l => {
-        const d = new Date(l.data);
-        if (tipo === "dia") return d.toDateString() !== agora.toDateString(); 
-        if (tipo === "mes") return d.getMonth() !== agora.getMonth(); 
-        return true;
-    });
-    salvar(); abrirHistorico();
-}
-
-/* ================= CRUD ================= */
-function adicionarConta() {
-  const nome = prompt("Nome:"); if (!nome) return;
-  const valorStr = prompt("Valor:"); if (!valorStr) return;
-  const valor = parseFloat(valorStr.replace(",", "."));
-  const data = prompt("Vencimento (DD/MM/AAAA):"); if (!data) return;
-  const codigoPix = prompt("Pix (Opcional):");
-  
-  let recorrente = confirm("Recorrente (Mensal)?");
-  let repeticoes = null, totalParcelas = 0;
-  if (recorrente) { 
-      const r = prompt("Quantas parcelas? (Digite 0 para infinito)"); 
-      const n = Number(r); 
-      if (n > 0) { repeticoes = n; totalParcelas = n; } 
-  }
-
-  contas.push({ id: Date.now()+Math.random(), nome, valor, vencimento: brParaISO(data), codigoPix: codigoPix || "", paga: false, oculta: false, recorrente, repeticoes, totalParcelas, parcelaAtual: recorrente ? 1 : null, dataPagamento: null });
-  registrarLog("CRIADO", `Nova conta: ${nome} - R$ ${valor}`);
-  salvar();
-}
-
-function editarConta(i) {
-    if (!confirmarSeguranca("EDITAR")) return;
-    const c = contas[i]; const backup = JSON.parse(JSON.stringify(c));
-    
-    const novoNome = prompt("Nome:", c.nome); if (novoNome === null) return; 
-    const novoValorStr = prompt("Valor:", c.valor); if (novoValorStr === null) return;
-    const novoValor = parseFloat(novoValorStr.replace(",", "."));
-    const novaData = prompt("Data:", isoParaBR(c.vencimento)); if (novaData === null) return;
-    const novoPix = prompt("Pix:", c.codigoPix || "");
-    
-    const isRecorrente = confirm("Recorrente?");
-    let novaParcelaAtual = null; let novoTotalParcelas = null;
-    if (isRecorrente) {
-        const pAtual = prompt("Parcela Atual?", c.parcelaAtual || 1); novaParcelaAtual = pAtual ? parseInt(pAtual) : 1;
-        const pTotal = prompt("Total Parcelas?", c.totalParcelas || ""); novoTotalParcelas = (pTotal && parseInt(pTotal) > 0) ? parseInt(pTotal) : null;
-    }
-
-    if (!novoNome || isNaN(novoValor) || !novaData) { alert("Inválido."); return; }
-    c.nome = novoNome; c.valor = novoValor; c.vencimento = brParaISO(novaData);
-    c.codigoPix = novoPix || ""; c.recorrente = isRecorrente; c.parcelaAtual = novaParcelaAtual; c.totalParcelas = novoTotalParcelas;
-    
-    registrarLog("EDITADO", `Alterou ${c.nome}`, backup);
-    salvar();
-}
-
-function adiarConta(i) {
-    if (!confirmarSeguranca("MOVER")) return;
-    const c = contas[i]; const backup = JSON.parse(JSON.stringify(c));
-    const novaData = prompt("Nova data:", isoParaBR(proximoMes(c.vencimento)));
-    if (novaData) { c.vencimento = brParaISO(novaData); registrarLog("ADIADO", `${c.nome} para ${novaData}`, backup); salvar(); }
-}
-function ocultarConta(i) { 
-    if(!confirmarSeguranca("ARQUIVAR")) return;
-    const backup = JSON.parse(JSON.stringify(contas[i]));
-    contas[i].oculta = true; registrarLog("ARQUIVADO", `Ocultou ${contas[i].nome}`, backup); salvar(); 
-}
 function deletarConta(i) {
-    if(confirmarSeguranca("EXCLUIR")) {
+    confirmarSeguranca("EXCLUIR", () => {
         const backup = JSON.parse(JSON.stringify(contas[i]));
         registrarLog("EXCLUÍDO", `Apagou ${contas[i].nome}`, backup);
-        contas.splice(i,1); salvar();
-    }
-}
-function desfazerPagamento(i) { 
-    if (!confirmarSeguranca("DESFAZER")) return; 
-    const backup = JSON.parse(JSON.stringify(contas[i]));
-    contas[i].paga = false; contas[i].dataPagamento = null; contas[i].oculta = false; 
-    registrarLog("REVERTEU PGTO", `Voltou ${contas[i].nome}`, backup); salvar(); 
-}
-function clonarConta(i) {
-    if(!confirm("Clonar?")) return;
-    const original = contas[i];
-    const copia = { ...original, id: Date.now()+Math.random(), nome: original.nome + " (Cópia)", paga: false, oculta: false, dataPagamento: null, recorrente: false };
-    contas.push(copia); registrarLog("CLONADO", `Clonou ${original.nome}`); salvar();
-}
-function copiarPix(i) { const c = contas[i]; if(c.codigoPix) navigator.clipboard.writeText(c.codigoPix).then(()=>alert("Copiado!")); }
-
-/* ================= EXTRAS (PDF PRO, BACKUP, WHATSAPP) ================= */
-function baixarBackup() { 
-    const d = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({contas, logs})); 
-    const a = document.createElement('a'); a.href = d; a.download = "backup.json"; document.body.appendChild(a); a.click(); a.remove(); 
-}
-function lerArquivoBackup(input) { 
-    const file = input.files[0]; if(!file) return; 
-    const reader = new FileReader(); 
-    reader.onload = function(e) { 
-        try { 
-            const dados = JSON.parse(e.target.result); 
-            if (Array.isArray(dados)) {
-                if(confirm("Restaurar backup antigo?")) { 
-                    contas = dados; logs = []; 
-                    contas.forEach(c => { if(!c.id) c.id = Date.now() + Math.random(); });
-                    salvar(); alert("Restaurado!"); location.reload(); 
-                } 
-            } else if (dados.contas) {
-                if(confirm("Restaurar backup completo?")) { 
-                    contas = dados.contas; logs = dados.logs || [];
-                    salvar(); alert("Restaurado!"); location.reload(); 
-                }
-            } else alert("Inválido.");
-        } catch(err) { alert("Erro ao ler."); } 
-    }; 
-    reader.readAsText(file); 
+        contas.splice(i, 1);
+        salvar();
+    });
 }
 
-// === COMPARTILHAMENTO INTELIGENTE (WHATSAPP DIRETO) ===
-function enviarWhatsapp(texto) {
-    // Tenta API nativa primeiro, se falhar, abre link do zap
-    if (navigator.share) {
-        navigator.share({ title: 'Minhas Contas', text: texto }).catch(() => {
-            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
-        });
+function desfazerPagamento(i) {
+    confirmarSeguranca("REVERTER PAGAMENTO", () => {
+        contas[i].paga = false;
+        contas[i].oculta = false;
+        registrarLog("ESTORNO", `Reverteu pagamento de ${contas[i].nome}`);
+        salvar();
+    });
+}
+
+function copiarPix(i) {
+    const pix = contas[i].codigoPix;
+    if (pix) {
+        navigator.clipboard.writeText(pix);
+        exibirMensagemModal("Copiado", "Código Pix copiado para a área de transferência! ✅");
     } else {
-        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
+        exibirMensagemModal("Aviso", "Esta conta não possui código Pix cadastrado.");
     }
 }
+
+/* ================= WHATSAPP E PDF ================= */
 
 function compartilharMes(mes) {
-  let texto = `📅 *Resumo - ${mes}*\n\n`;
-  const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes).sort((a,b) => new Date(a.vencimento) - new Date(b.vencimento));
-  let total = 0, pago = 0;
-
-  contasDoMes.forEach(c => {
-    if(filtro === "pagas" && !c.paga) return;
-    total += c.valor;
+    let texto = `📅 *Resumo Financeiro - ${mes}*\n\n`;
+    const selecionadas = contas.filter(c => mesAno(c.vencimento) === mes);
     
-    // Lógica para identificar se é parcelado (tem total de parcelas definido)
-    let infoParcelaZap = "";
-    if (c.totalParcelas && c.totalParcelas > 0) {
-        infoParcelaZap = ` (Parcela ${c.parcelaAtual || 1} de ${c.totalParcelas})`;
-    }
-
-    if(c.paga) {
-        pago += c.valor;
-        texto += `✅ ${c.nome}${infoParcelaZap}: R$ ${c.valor.toFixed(2)}\n`;
-    } else {
-        const [ano, m, dia] = c.vencimento.split('-');
-        texto += `⭕ ${c.nome}${infoParcelaZap} (${dia}/${m}): R$ ${c.valor.toFixed(2)}\n`;
-    }
-  });
-
-  const falta = total - pago;
-  texto += `\n--------------------\n💰 Total: R$ ${total.toFixed(2)}\n✅ Pago: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${falta.toFixed(2)}`;
-  
-  enviarWhatsapp(texto);
-}
-
-function compartilharIndividual(i) { 
-    const c = contas[i]; 
-    
-    // Adiciona a info de parcelas se existir
-    let infoParcelaZap = "";
-    if (c.totalParcelas && c.totalParcelas > 0) {
-        infoParcelaZap = `\n🔢 Parcela: ${c.parcelaAtual || 1} de ${c.totalParcelas}`;
-    }
-
-    const t = `🧾 *Conta*\n\n📌 ${c.nome}${infoParcelaZap}\n💰 R$ ${c.valor.toFixed(2)}\n🗓 Vencimento: ${isoParaBR(c.vencimento)}\n${c.paga ? '✅ PAGO' : '⭕ PENDENTE'}`; 
-    enviarWhatsapp(t); 
-}
-
-function compartilharIndividual(i) { 
-    const c = contas[i]; 
-    const t = `🧾 *Conta*\n\n📌 ${c.nome}\n💰 R$ ${c.valor.toFixed(2)}\n🗓 Vencimento: ${isoParaBR(c.vencimento)}\n${c.paga ? '✅ PAGO' : '⭕ PENDENTE'}`; 
-    enviarWhatsapp(t); 
-}
-
-// === PDF PROFISSIONAL (NOTA FISCAL) ===
-function baixarPdfMes(mes) {
-    if(!window.jspdf) { alert("Erro biblioteca PDF."); return; }
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF();
-    const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes && (filtro === "todas" || (filtro === "pagas" && c.paga)));
-    
-    // Configurações
-    pdf.setFont("courier");
-    let y = 15;
-
-    // Cabeçalho
-    pdf.setLineWidth(0.5);
-    pdf.rect(10, 10, 190, 25); // Box Topo
-    pdf.setFontSize(16); pdf.setFont(undefined, 'bold');
-    pdf.text("DEMONSTRATIVO FINANCEIRO", 105, 18, {align:'center'});
-    pdf.setFontSize(10); pdf.setFont(undefined, 'normal');
-    pdf.text(`PERÍODO: ${mes}`, 105, 25, {align:'center'});
-    pdf.text(`EMITIDO EM: ${new Date().toLocaleDateString()}`, 105, 30, {align:'center'});
-
-    // Tabela com AutoTable
-    let dadosTabela = [];
-    let total = 0, pago = 0;
-    contasDoMes.forEach(c => {
-        total += c.valor; if(c.paga) pago += c.valor;
-        dadosTabela.push([
-            c.nome, 
-            isoParaBR(c.vencimento), 
-            c.paga ? "PAGO" : "ABERTO", 
-            `R$ ${c.valor.toFixed(2)}`
-        ]);
+    selecionadas.forEach(c => {
+        const status = c.paga ? "✅" : "⭕";
+        const infoParcela = (c.totalParcelas > 0) ? ` (${c.parcelaAtual}/${c.totalParcelas})` : "";
+        texto += `${status} ${c.nome}${infoParcela}: R$ ${c.valor.toFixed(2)}\n`;
     });
-
-    pdf.autoTable({
-        head: [['CONTA', 'VENCIMENTO', 'STATUS', 'VALOR']],
-        body: dadosTabela,
-        startY: 40,
-        theme: 'grid', // Estilo grade
-        styles: { font: "courier", fontSize: 10 },
-        headStyles: { fillColor: [40, 40, 40] } // Cabeçalho escuro
-    });
-
-    // Rodapé Totais
-    y = pdf.lastAutoTable.finalY + 10;
-    pdf.rect(10, y, 190, 20);
-    pdf.setFont(undefined, 'bold');
-    pdf.text(`TOTAL GERAL: R$ ${total.toFixed(2)}`, 15, y+8);
-    pdf.text(`TOTAL PAGO:  R$ ${pago.toFixed(2)}`, 15, y+15);
-    pdf.text(`RESTANTE:    R$ ${(total-pago).toFixed(2)}`, 110, y+8);
-
-    // Código Verificação Falso
-    const hash = Math.random().toString(36).substring(2, 15).toUpperCase();
-    pdf.setFontSize(8); pdf.setTextColor(100);
-    pdf.text(`AUTENTICAÇÃO: ${hash}-${Date.now()}`, 105, 285, {align:'center'});
     
-    // Código de Barras Fake
-    pdf.setFillColor(0);
-    pdf.rect(70, 270, 70, 8, 'F'); 
-
-    pdf.save(`relatorio_${mes.replace('/','-')}.pdf`);
+    const total = selecionadas.reduce((acc, curr) => acc + curr.valor, 0);
+    texto += `\n💰 *Total do Mês: R$ ${total.toFixed(2)}*`;
+    
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
 }
 
-function gerarComprovanteIndividual(i) {
-    if(!window.jspdf) { alert("Erro PDF"); return; }
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF();
+function compartilharIndividual(i) {
     const c = contas[i];
+    const infoParcela = (c.totalParcelas > 0) ? `\n🔢 Parcela: ${c.parcelaAtual} de ${c.totalParcelas}` : "";
+    const texto = `🧾 *Conta: ${c.nome}*${infoParcela}\n💰 Valor: R$ ${c.valor.toFixed(2)}\n🗓 Vencimento: ${isoParaBR(c.vencimento)}\n📌 Status: ${c.paga ? 'PAGO' : 'PENDENTE'}`;
     
-    pdf.rect(10, 10, 190, 120); // Borda Grande
-    pdf.setFontSize(22); pdf.setFont(undefined, 'bold');
-    pdf.text("RECIBO", 105, 25, {align:'center'});
-    
-    pdf.setFontSize(12); pdf.setFont(undefined, 'normal');
-    pdf.text(`Pagador: Sutello`, 20, 40);
-    pdf.text(`Referente a: ${c.nome}`, 20, 50);
-    pdf.text(`Vencimento: ${isoParaBR(c.vencimento)}`, 20, 60);
-    
-    pdf.setFontSize(16); pdf.setFont(undefined, 'bold');
-    pdf.text(`VALOR: R$ ${c.valor.toFixed(2)}`, 20, 80);
-    
-    if(c.paga) {
-        pdf.setTextColor(0,150,0);
-        pdf.text("SITUAÇÃO: PAGO", 20, 95);
-        pdf.setFontSize(10); pdf.setTextColor(0);
-        pdf.text(`Data Pagamento: ${isoParaBR(c.dataPagamento)}`, 20, 102);
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
+}
+
+/* ================= AUXILIARES TÉCNICOS ================= */
+
+function getIcone(nome) {
+  const n = nome.toLowerCase();
+  if (n.includes("luz") || n.includes("energia")) return "💡";
+  if (n.includes("agua")) return "💧";
+  if (n.includes("net") || n.includes("wifi")) return "🌐";
+  if (n.includes("cartao") || n.includes("nubank") || n.includes("inter")) return "💳";
+  if (n.includes("mercado") || n.includes("compras")) return "🛒";
+  return "📄"; 
+}
+
+const isoParaBR = d => d.split("-").reverse().join("/");
+const brParaISO = d => d.split("/").reverse().join("-");
+const mesAno = d => d.split("-").slice(1, 0).reverse().join("/") || d.substring(5,7) + "/" + d.substring(0,4);
+const proximoMes = d => { 
+    const dt = new Date(d + "T12:00:00"); 
+    dt.setMonth(dt.getMonth() + 1); 
+    return dt.toISOString().split("T")[0]; 
+};
+
+function infoVencimento(dataISO) {
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const venc = new Date(dataISO + "T12:00:00"); venc.setHours(0,0,0,0);
+  const diff = Math.floor((venc - hoje) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return { texto: "VENCIDO", classe: "vencido" };
+  if (diff === 0) return { texto: "vence hoje", classe: "hoje" };
+  return { texto: `vence em: ${diff} dias`, classe: "normal" };
+}
+
+function toggleMenu(id) {
+    const menu = document.getElementById(`menu-${id}`);
+    const btn = document.getElementById(`btn-expand-${id}`);
+    if (menu.style.display === "flex") {
+        menu.style.display = "none";
+        btn.innerHTML = "🔻";
     } else {
-        pdf.setTextColor(200,0,0);
-        pdf.text("SITUAÇÃO: PENDENTE", 20, 95);
+        menu.style.display = "flex";
+        btn.innerHTML = "🔺";
     }
-    
-    pdf.setLineWidth(0.5); pdf.line(20, 110, 190, 110);
-    pdf.setFontSize(9); pdf.setTextColor(100);
-    pdf.text(`Hash: ${Math.random().toString(36).toUpperCase()}`, 105, 118, {align:'center'});
-    
-    pdf.save(`recibo_${c.nome}.pdf`);
 }
 
-function abrirOpcoes() { document.getElementById("modalOpcoes").style.display = "flex"; }
-function fecharOpcoes() { document.getElementById("modalOpcoes").style.display = "none"; }
-function abrirCalculadora() { document.getElementById("modalCalc").style.display = "flex"; }
-function fecharCalculadora() { document.getElementById("modalCalc").style.display = "none"; }
-let calcExpressao = "";
-function calcAdd(v) { calcExpressao += v; document.getElementById("calcDisplay").value = calcExpressao; }
-function calcLimpar() { calcExpressao = ""; document.getElementById("calcDisplay").value = ""; }
-function calcCalcular() { try { document.getElementById("calcDisplay").value = eval(calcExpressao); } catch { alert("Erro"); } }
-function fecharAviso() { const av = document.getElementById("avisoSwipe"); if(av) av.remove(); }
-function setFiltro(f, btn) {
-  filtro = f;
-  document.querySelectorAll(".filtros button").forEach(b => b.classList.remove("ativo"));
-  btn.classList.add("ativo");
-  render();
+function togglePrivacidade() {
+    document.body.classList.toggle("modo-privado");
+    localStorage.setItem("modoPrivado", document.body.classList.contains("modo-privado"));
+    render();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-   if(localStorage.getItem("modoPrivado") === "true") document.body.classList.add("modo-privado");
-});
-
-function desbloquear() {
-  const pinInput = document.getElementById("pin");
-  if (pinInput && pinInput.value !== PIN) { alert("PIN incorreto."); pinInput.value = ""; return; }
-  document.getElementById("lock").style.display = "none";
-  document.getElementById("app").style.display = "block";
-  carregarPerfil();
-  render();
+function registrarLog(acao, detalhe, backup = null) {
+    logs.unshift({ id: Date.now(), data: new Date().toISOString(), acao, detalhe, backup });
+    if(logs.length > 30) logs.pop();
 }
 
-function carregarPerfil() {
-  const f = localStorage.getItem("fotoPerfil");
-  const img = document.getElementById("fotoPerfil");
-  if (f && img) img.src = f;
-}
-const imgPerfil = document.getElementById("fotoPerfil");
-const inputUpload = document.getElementById("uploadFoto");
-if(imgPerfil && inputUpload) {
-    imgPerfil.onclick = () => inputUpload.click();
-    inputUpload.onchange = e => {
-      const r = new FileReader();
-      r.onload = () => { localStorage.setItem("fotoPerfil", r.result); imgPerfil.src = r.result; };
-      r.readAsDataURL(e.target.files[0]);
-    };
-}
-
-function exibirMensagemModal(titulo, mensagem) {
-    const modal = document.getElementById("modalDecisao");
-    document.getElementById("tituloDecisao").innerText = titulo;
-    document.getElementById("textoDecisao").innerText = mensagem;
-    const btn1 = document.getElementById("btnOpcao1");
-    btn1.innerText = "OK";
-    btn1.onclick = fecharModalDecisao;
-    document.getElementById("btnOpcao2").style.display = "none";
-    modal.style.display = "flex";
-}
-
-function mostrarConfirmacaoModal(titulo, mensagem, callback) {
-    const modal = document.getElementById("modalDecisao");
-    document.getElementById("tituloDecisao").innerText = titulo;
-    document.getElementById("textoDecisao").innerText = mensagem;
-    const btn1 = document.getElementById("btnOpcao1");
-    const btn2 = document.getElementById("btnOpcao2");
-    btn1.innerText = "SIM";
-    btn1.onclick = () => { fecharModalDecisao(); callback(); };
-    btn2.style.display = "block";
-    btn2.innerText = "NÃO";
-    btn2.onclick = fecharModalDecisao;
-    modal.style.display = "flex";
-}
+// Inicializa o App
+render();
