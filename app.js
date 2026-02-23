@@ -675,7 +675,12 @@ function ocultarConta(i) {
 
 function compartilharMes(mes) {
     let t = `📅 *Resumo ${mes}*\n\n`;
-    const contasDoMes = contas.filter(c => mesAno(c.vencimento) === mes);
+    
+    // NOVO: Filtra as contas do mês e já ORDENA pela data de vencimento (mais antigas primeiro)
+    const contasDoMes = contas
+        .filter(c => mesAno(c.vencimento) === mes)
+        .sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento));
+        
     let total = 0, pago = 0;
 
     contasDoMes.forEach(c => {
@@ -694,7 +699,6 @@ function compartilharMes(mes) {
             infoParcela = ` (${c.parcelaAtual}/${c.totalParcelas})`;
             
             if (c.valorTotalOriginal) {
-                // CORREÇÃO AQUI:
                 let parcelasConsideradas = c.paga ? c.parcelaAtual : (c.parcelaAtual - 1);
                 const jaPago = (parcelasConsideradas * c.valor).toFixed(2);
                 
@@ -702,14 +706,14 @@ function compartilharMes(mes) {
             }
         }
 
-        // NOVO: Verifica se tem pagador e formata (Vitórya ou Leonardo)
         const pagadorTxt = c.pagador ? ` (${c.pagador})` : "";
 
-        // NOVO: A linha abaixo junta tudo: Status, Nome, Pagador, Parcelas, Valor, Vencimento e Info Financeira
-        t += `${status} ${c.nome}${pagadorTxt}${infoParcela}: R$ ${c.valor.toFixed(2)} - Venc: ${isoParaBR(c.vencimento)}${infoFinanceira}\n`;
+        // NOVO: Adicionado * para negrito no nome e \n\n no final para dar o espaçamento entre as contas
+        t += `${status} *${c.nome}*${pagadorTxt}${infoParcela}: R$ ${c.valor.toFixed(2)} - Venc: ${isoParaBR(c.vencimento)}${infoFinanceira}\n\n`;
     });
     
-    t += `\n💰 Total Mês: R$ ${total.toFixed(2)}\n✅ Pago Mês: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${(total-pago).toFixed(2)}`;
+    // NOVO: Adicionado um separador visual antes dos totais
+    t += `➖➖➖➖➖➖➖➖\n💰 Total Mês: R$ ${total.toFixed(2)}\n✅ Pago Mês: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${(total-pago).toFixed(2)}`;
     
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(t)}`);
 }
