@@ -290,7 +290,7 @@ function render() {
       // AQUI ESTÁ A CORREÇÃO VISUAL DA CONTA INDIVIDUAL
       div.innerHTML = `
         ${(!c.paga && vencInfo.classe === "vencido") ? `<span class="badge-vencido">VENCIDO</span>` : ``}
-        <div style="font-size: 1.1em; margin-bottom: 5px;"><strong>${icone} ${c.nome}</strong></div>
+        <div style="font-size: 1.1em; margin-bottom: 5px;"><strong>${icone} ${c.nome} ${c.pagador ? `(${c.pagador})` : ''}</strong></div>
         <div style="font-size: 1.2em; font-weight: bold;">💰 ${fmtMoney(c.valor)}</div>
         <div style="margin-top: 5px;">📅 ${isoParaBR(c.vencimento)}</div>
         ${htmlParcelas}
@@ -431,6 +431,11 @@ function garantirModalAdicionar() {
             <label style="font-size:12px; color:#aaa;">Vencimento</label>
             <input id="newData" type="date" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #444; background:#222; color:white;">
             
+            <label style="font-size:12px; color:#aaa;">Quem vai pagar?</label>
+            <select id="newPagador" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #444; background:#222; color:white;">
+                <option value="Leonardo">Leonardo</option>
+                <option value="Vitórya">Vitórya</option>
+            </select>
             <div style="background:#2a2a36; padding:10px; border-radius:8px; margin-bottom:15px;">
                 <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
                     <input id="newRecorrente" type="checkbox" onchange="toggleParcelasInput()" style="width:20px; height:20px;">
@@ -508,13 +513,13 @@ function salvarContaFormulario() {
     const data = document.getElementById("newData").value;
     const isRec = document.getElementById("newRecorrente").checked;
     const qtd = isRec ? (parseInt(document.getElementById("newQtd").value) || 0) : 0;
+    const pagador = document.getElementById("newPagador").value; // PEGANDO O PAGADOR
 
     if (!nome || isNaN(valorTotal) || !data) {
         alert("Preencha o nome, valor e data!");
         return;
     }
 
-    // Lógica inteligente: Se for parcelado, divide o valor. Se for fixo ou único, mantém.
     let valorFinal = valorTotal;
     if (isRec && qtd > 0) {
         valorFinal = valorTotal / qtd;
@@ -523,8 +528,9 @@ function salvarContaFormulario() {
     contas.push({ 
       id: Date.now()+Math.random(), 
       nome: nome, 
+      pagador: pagador, // SALVANDO O PAGADOR
       valor: valorFinal,
-      valorTotalOriginal: (isRec && qtd > 0) ? valorTotal : null, // Guarda o total para o Zap
+      valorTotalOriginal: (isRec && qtd > 0) ? valorTotal : null,
       vencimento: brParaISO(data), 
       paga: false, 
       oculta: false, 
@@ -535,7 +541,7 @@ function salvarContaFormulario() {
     });
   
     const detalhe = qtd > 0 ? `${qtd}x de R$ ${valorFinal.toFixed(2)}` : `R$ ${valorFinal.toFixed(2)}`;
-    registrarLog("CRIADO", `Conta: ${nome} (${detalhe})`);
+    registrarLog("CRIADO", `Conta: ${nome} (${pagador}) - ${detalhe}`); // ADD NO LOG
     
     salvar();
     fecharModalAdicionar();
@@ -615,11 +621,16 @@ function deletarConta(i) {
 function editarConta(i) {
     confirmarSeguranca("EDITAR", () => {
         const c = contas[i];
-        const n = prompt("Nome:", c.nome);
-        const v = prompt("Valor Parcela:", c.valor); // Edita o valor mensal
-        const d = prompt("Data:", isoParaBR(c.vencimento));
-        if(n && v && d) {
-            c.nome = n; c.valor = parseFloat(v.replace(",",".")); c.vencimento = brParaISO(d);
+        const n = prompt("Nome da conta:", c.nome);
+        const p = prompt("Quem vai pagar? (Vitórya ou Leonardo):", c.pagador || "Leonardo"); // NOVO PROMPT
+        const v = prompt("Valor Parcela:", c.valor); 
+        const d = prompt("Data de Vencimento:", isoParaBR(c.vencimento));
+        
+        if(n && v && d && p) {
+            c.nome = n; 
+            c.pagador = p; // ATUALIZA O PAGADOR
+            c.valor = parseFloat(v.replace(",",".")); 
+            c.vencimento = brParaISO(d);
             salvar();
         }
     });
@@ -684,8 +695,6 @@ function compartilharMes(mes) {
             
             if (c.valorTotalOriginal) {
                 // CORREÇÃO AQUI:
-                // Se a conta está PAGA (✅), multiplicamos pela parcela atual (ex: pagou a 5ª de 10 -> 5 * valor).
-                // Se está PENDENTE (⭕), multiplicamos pela anterior (ex: deve a 5ª de 10 -> 4 * valor).
                 let parcelasConsideradas = c.paga ? c.parcelaAtual : (c.parcelaAtual - 1);
                 const jaPago = (parcelasConsideradas * c.valor).toFixed(2);
                 
@@ -693,7 +702,11 @@ function compartilharMes(mes) {
             }
         }
 
-        t += `${status} ${c.nome}${infoParcela}: R$ ${c.valor.toFixed(2)}${infoFinanceira}\n`;
+        // NOVO: Verifica se tem pagador e formata (Vitórya ou Leonardo)
+        const pagadorTxt = c.pagador ? ` (${c.pagador})` : "";
+
+        // NOVO: A linha abaixo junta tudo: Status, Nome, Pagador, Parcelas, Valor, Vencimento e Info Financeira
+        t += `${status} ${c.nome}${pagadorTxt}${infoParcela}: R$ ${c.valor.toFixed(2)} - Venc: ${isoParaBR(c.vencimento)}${infoFinanceira}\n`;
     });
     
     t += `\n💰 Total Mês: R$ ${total.toFixed(2)}\n✅ Pago Mês: R$ ${pago.toFixed(2)}\n⏳ Falta: R$ ${(total-pago).toFixed(2)}`;
@@ -713,7 +726,11 @@ function compartilharIndividual(i) {
         extra = `\n📦 Parcela: ${c.parcelaAtual}/${c.totalParcelas}\n🏷️ Total Compra: R$ ${c.valorTotalOriginal}\n💸 Acumulado Pago: R$ ${jaPago}`;
     }
     
-    const t = `🧾 ${c.nome}\n💰 Valor Parcela: R$ ${c.valor.toFixed(2)}\n🗓 Vencimento: ${isoParaBR(c.vencimento)}${extra}`;
+    // NOVO: Verifica se tem pagador e formata
+    const pagadorTxt = c.pagador ? ` (${c.pagador})` : "";
+    
+    // NOVO: Adiciona o pagadorTxt do lado do nome, e mantém o vencimento e o extra (parcelas)
+    const t = `🧾 ${c.nome}${pagadorTxt}\n💰 Valor Parcela: R$ ${c.valor.toFixed(2)}\n🗓 Vencimento: ${isoParaBR(c.vencimento)}${extra}`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(t)}`);
 }
 
