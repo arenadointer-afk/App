@@ -1,4 +1,4 @@
-const CACHE_NAME = "Sutello-Financeiro-V2";
+const CACHE_NAME = "Sutello-Financeiro-V3";
 
 const FILES_TO_CACHE = [
   "/App/",
