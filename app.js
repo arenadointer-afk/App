@@ -1,3 +1,76 @@
+/* ================= 0. FIREBASE CONFIGURAÇÃO ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDDguzJOP5GKqlqf8GW-xdsTCxh1Ha7C7k",
+  authDomain: "sutello-financeiro.firebaseapp.com",
+  projectId: "sutello-financeiro",
+  storageBucket: "sutello-financeiro.firebasestorage.app",
+  messagingSenderId: "460447549653",
+  appId: "1:460447549653:web:a36b0c7d2c2919ff633a5c"
+};
+
+// Inicializa o banco de dados e a autenticação
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Função de Login Real
+function fazerLoginFirebase() {
+    const email = document.getElementById("loginEmail").value;
+    const senha = document.getElementById("loginSenha").value;
+
+    if (!email || !senha) {
+        exibirMensagemModal("Aviso", "Preencha o e-mail e a senha!");
+        return;
+    }
+
+    // O Firebase vai na internet conferir a senha
+    auth.signInWithEmailAndPassword(email, senha)
+        .then((userCredential) => {
+            // Se a senha estiver certa, ele entra no app
+            entrarNoApp();
+        })
+        .catch((error) => {
+            exibirMensagemModal("Erro", "E-mail ou senha incorretos!");
+            console.error(error);
+        });
+}
+// ========================================================
+// SISTEMA DE ESTADO DE LOGIN E SINCRONIZAÇÃO EM TEMPO REAL
+// ========================================================
+auth.onAuthStateChanged(function(user) {
+    if (user) {
+        // 1. O USUÁRIO ESTÁ LOGADO NA NUVEM!
+        // Esconde os campos de email/senha da tela inicial
+        document.getElementById("loginEmail").style.display = "none";
+        document.getElementById("loginSenha").style.display = "none";
+        // Esconde o botão de Entrar com Senha (pegando o primeiro botão depois dos inputs)
+        document.querySelector("button[onclick='fazerLoginFirebase()']").style.display = "none";
+
+        // 2. CONECTA COM O BANCO EM TEMPO REAL
+        db.collection("dados_financeiros").doc(user.uid)
+          .onSnapshot(function(doc) {
+              if (doc.exists) {
+                  const dadosDaNuvem = doc.data();
+                  contas = dadosDaNuvem.contas || [];
+                  logs = dadosDaNuvem.logs || [];
+                  
+                  // Atualiza a tela imediatamente se o app já estiver desbloqueado
+                  if (document.getElementById("app").style.display === "block") {
+                      render();
+                  }
+              }
+          });
+
+        // 3. Pede a biometria já que ele tem permissão de internet
+        tentarAutoLogin();
+
+    } else {
+        // NINGUÉM LOGADO: Garante que os campos de E-mail e Senha apareçam
+        document.getElementById("loginEmail").style.display = "block";
+        document.getElementById("loginSenha").style.display = "block";
+        document.querySelector("button[onclick='fazerLoginFirebase()']").style.display = "block";
+    }
+});
 /* ================= 1. CONFIGURAÇÕES E VARIÁVEIS GLOBAIS ================= */
 const PIN = "2007"; 
 let contas = [];
@@ -322,9 +395,19 @@ function render() {
 /* ================= 6. AÇÕES DE SISTEMA (CRUD INTELIGENTE) ================= */
 
 function salvar() {
-  localStorage.setItem("contas", JSON.stringify(contas));
-  localStorage.setItem("logs", JSON.stringify(logs));
-  render();
+    // 1. Continua salvando no celular (para funcionar rápido e offline)
+    localStorage.setItem("contas", JSON.stringify(contas));
+    localStorage.setItem("logs", JSON.stringify(logs));
+    
+    // 2. MÁGICA: Envia para a nuvem do Firebase silenciosamente
+    if (auth.currentUser) {
+        db.collection("dados_financeiros").doc(auth.currentUser.uid).set({
+            contas: contas,
+            logs: logs
+        }).catch(erro => console.error("Erro ao salvar na nuvem:", erro));
+    }
+    
+    render();
 }
 
 function registrarLog(acao, detalhe, backup = null, relatedId = null) {
