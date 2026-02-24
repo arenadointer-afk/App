@@ -7,20 +7,27 @@
   <link rel="manifest" href="/App/manifest.json">
 <meta name="theme-color" content="#7b2ff7">
   <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 <div id="lock" class="lock" style="background: #0f0f14;">
   <div style="text-align:center; padding: 20px; max-width: 300px;">
     <div style="font-size: 60px; margin-bottom: 20px;">🛡️</div>
     <h2 style="color:white; margin-bottom: 10px;">Acesso Restrito</h2>
-    <p style="color: #888; margin-bottom: 30px; font-size: 14px;">Identifique-se para continuar</p>
+    <p style="color: #888; margin-bottom: 20px; font-size: 14px;">Identifique-se para continuar</p>
     
-    <button onclick="acaoBotaoBiometria()" style="width: 100%; background:#7b2ff7; color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; margin-bottom: 15px; cursor: pointer;">
-      USAR BIOMETRIA
+    <input type="email" id="loginEmail" placeholder="E-mail" style="width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #444; background: #222; color: white; margin-bottom: 10px;">
+    
+    <input type="password" id="loginSenha" placeholder="Senha" style="width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #444; background: #222; color: white; margin-bottom: 20px;">
+    
+    <button onclick="fazerLoginFirebase()" style="width: 100%; background:#7b2ff7; color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; margin-bottom: 15px; cursor: pointer;">
+      ENTRAR
     </button>
 
-    <button onclick="pedirPinFallback()" style="width: 100%; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer;">
-      DIGITAR SENHA
+    <button onclick="acaoBotaoBiometria()" style="width: 100%; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer;">
+      USAR BIOMETRIA
     </button>
   </div>
 </div>
