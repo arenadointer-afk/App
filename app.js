@@ -1011,40 +1011,46 @@ function infoVencimento(dataISO) {
   if (diff === 0) return { texto: "vence hoje", classe: "hoje" };
   return { texto: `vence em: ${diff} dias`, classe: "normal" };
 }
-// ================= 9. MOTOR DE NOTIFICAÇÕES (MODO DETETIVE) =================
+// ================= 9. MOTOR DE NOTIFICAÇÕES (MODO DETETIVE 2.0) =================
 function pedirPermissaoNotificacoes() {
     if (typeof firebase !== 'undefined' && firebase.messaging) {
         const messaging = firebase.messaging();
         
         Notification.requestPermission().then((permission) => {
             if (permission === 'granted') {
-                // Tenta pegar o código e avisa na tela o resultado
+                mostrarErroNaTela("⏳ Permissão aceita! A tentar gerar o Token...");
+                
                 messaging.getToken({ vapidKey: 'BBuqqHohXIynKIQwME9qSmy-e-p2iS2-x_Pry1alnt9-DVhajP-eXSF3VTA3NiE28tv4iHoR4MJlKGYkcvsQ6Pk' })
                 .then((currentToken) => {
                     if (currentToken) {
-                        alert("✅ SUCESSO! Token gerado! Salvando na nuvem...");
-                        
+                        mostrarErroNaTela("✅ SUCESSO! Token gerado! Salvando no banco...");
                         if(auth.currentUser) {
                             db.collection("dados_financeiros").doc(auth.currentUser.uid).set({
                                 tokenNotificacao: currentToken
                             }, { merge: true })
-                            .then(() => alert("💾 Salvo no Firebase com sucesso!"))
-                            .catch((erroBanco) => alert("❌ Erro ao salvar no Firebase: " + erroBanco));
-                        } else {
-                            alert("⚠️ Erro: Usuário parece não estar logado.");
+                            .then(() => mostrarErroNaTela("💾 TOKEN SALVO NO FIREBASE! Pode testar!"))
+                            .catch((erroBanco) => mostrarErroNaTela("❌ Erro no Banco: " + erroBanco));
                         }
                     } else {
-                        alert("⚠️ O Firebase não devolveu nenhum token.");
+                        mostrarErroNaTela("⚠️ O Firebase não devolveu nenhum token.");
                     }
                 }).catch((err) => {
-                    // SE DER ERRO, VAMOS VER EXATAMENTE QUAL É AQUI!
-                    alert("❌ ERRO GRAVE DO FIREBASE: " + err);
+                    // AQUI ESTÁ O OURO: MOSTRA O ERRO EXATO!
+                    mostrarErroNaTela("❌ ERRO DO FIREBASE:<br><br>" + err);
                 });
             } else {
-                alert("⚠️ Permissão de notificação não foi concedida.");
+                mostrarErroNaTela("⚠️ Permissão de notificação negada no Chrome.");
             }
         });
     } else {
-        alert("❌ Firebase Messaging não está carregado no sistema.");
+        mostrarErroNaTela("❌ Erro: Firebase Messaging não carregou.");
     }
+}
+
+// Cria uma caixa vermelha gigante que não some
+function mostrarErroNaTela(msg) {
+    const div = document.createElement('div');
+    div.style.cssText = "position:fixed; top:0; left:0; width:100%; background:#c62828; color:white; z-index:99999; padding:20px; font-size:16px; font-weight:bold; word-wrap:break-word; border-bottom:5px solid black; text-align:center;";
+    div.innerHTML = msg + "<br><br><button onclick='this.parentElement.remove()' style='padding:15px; background:white; color:black; border-radius:8px; border:none; width:100%; font-weight:bold; font-size:16px;'>FECHAR AVISO</button>";
+    document.body.prepend(div);
 }
