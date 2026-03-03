@@ -193,8 +193,10 @@ function entrarNoApp() {
     document.getElementById("app").style.display = "block";
     carregarPerfil();
     render();
+    
+    // NOVO: Pede permissão para notificações assim que entra
+    pedirPermissaoNotificacoes();
 }
-
 /* ================= 3. SEGURANÇA (MODAIS CUSTOMIZADOS) ================= */
 
 function confirmarSeguranca(acao, callback) {
@@ -1008,4 +1010,28 @@ function infoVencimento(dataISO) {
   if (diff < 0) return { texto: "VENCIDO", classe: "vencido" };
   if (diff === 0) return { texto: "vence hoje", classe: "hoje" };
   return { texto: `vence em: ${diff} dias`, classe: "normal" };
+}
+// ================= 9. MOTOR DE NOTIFICAÇÕES =================
+function pedirPermissaoNotificacoes() {
+    // Só tenta pedir se o navegador suportar o Firebase Messaging
+    if (typeof firebase !== 'undefined' && firebase.messaging) {
+        const messaging = firebase.messaging();
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                // USA A SUA CHAVE EXATA
+                messaging.getToken({ vapidKey: 'BBuqqHohXIynKIQwME9qSmy-e-p2iS2-x_Pry1alnt9-DVhajP-eXSF3VTA3NiE28tv4iHoR4MJlKGYkcvsQ6Pk' })
+                .then((currentToken) => {
+                    if (currentToken) {
+                        console.log("Token gerado: ", currentToken);
+                        // Guarda o endereço do celular na SUA coleção de finanças
+                        if(auth.currentUser) {
+                            db.collection("dados_financeiros").doc(auth.currentUser.uid).set({
+                                tokenNotificacao: currentToken
+                            }, { merge: true });
+                        }
+                    }
+                }).catch((err) => console.log('Erro ao pegar token', err));
+            }
+        });
+    }
 }
