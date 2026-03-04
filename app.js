@@ -1018,28 +1018,20 @@ function pedirPermissaoNotificacoes() {
 
         // 1. Registramos o Service Worker manualmente na pasta correta
         navigator.serviceWorker.register('/App/firebase-messaging-sw.js')
-            .then((registration) => {
-                console.log("Service Worker registrado na pasta /App/!");
-
-                // 2. Agora pedimos o Token passando o registro que acabamos de fazer
-                return messaging.getToken({ 
-                    vapidKey: 'BBuqqHohXIynKIQwME9qSmy-e-p2iS2-x_Pry1alnt9-DVhajP-eXSF3VTA3NiE28tv4iHoR4MJlKGYkcvsQ6Pk',
-                    serviceWorkerRegistration: registration 
-                });
-            })
-            .then((currentToken) => {
-                if (currentToken) {
-                    // ... (seu código de salvar no Firestore continua aqui)
-                    alert("✅ SUCESSO! Token gerado e registrado via /App/!");
-                    if(auth.currentUser) {
-                        db.collection("dados_financeiros").doc(auth.currentUser.uid).set({
-                            tokenNotificacao: currentToken
-                        }, { merge: true });
-                    }
-                }
-            })
-            .catch((err) => {
-                alert("❌ Erro ao registrar Service Worker em /App/: " + err);
-            });
-    }
-}
+    .then((registration) => {
+        return messaging.getToken({ 
+            vapidKey: 'BBuqqHohXIynKIQwME9qSmy-e-p2iS2-x_Pry1alnt9-DVhajP-eXSF3VTA3NiE28tv4iHoR4MJlKGYkcvsQ6Pk',
+            serviceWorkerRegistration: registration 
+        });
+    })
+    .then((currentToken) => {
+        if (currentToken) {
+            db.collection("dados_financeiros").doc(auth.currentUser.uid).set({
+                tokenNotificacao: currentToken
+            }, { merge: true });
+            alert("✅ SUCESSO! Token gerado.");
+        }
+    })
+    .catch((err) => {
+        alert("❌ Erro ao registrar: " + err);
+    });
