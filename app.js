@@ -1015,42 +1015,31 @@ function infoVencimento(dataISO) {
 function pedirPermissaoNotificacoes() {
     if (typeof firebase !== 'undefined' && firebase.messaging) {
         const messaging = firebase.messaging();
-        
-        Notification.requestPermission().then((permission) => {
-            if (permission === 'granted') {
-                mostrarErroNaTela("⏳ Permissão aceita! A tentar gerar o Token...");
-                
-                messaging.getToken({ vapidKey: 'BBuqqHohXIynKIQwME9qSmy-e-p2iS2-x_Pry1alnt9-DVhajP-eXSF3VTA3NiE28tv4iHoR4MJlKGYkcvsQ6Pk' })
-                .then((currentToken) => {
-                    if (currentToken) {
-                        mostrarErroNaTela("✅ SUCESSO! Token gerado! Salvando no banco...");
-                        if(auth.currentUser) {
-                            db.collection("dados_financeiros").doc(auth.currentUser.uid).set({
-                                tokenNotificacao: currentToken
-                            }, { merge: true })
-                            .then(() => mostrarErroNaTela("💾 TOKEN SALVO NO FIREBASE! Pode testar!"))
-                            .catch((erroBanco) => mostrarErroNaTela("❌ Erro no Banco: " + erroBanco));
-                        }
-                    } else {
-                        mostrarErroNaTela("⚠️ O Firebase não devolveu nenhum token.");
-                    }
-                }).catch((err) => {
-                    // AQUI ESTÁ O OURO: MOSTRA O ERRO EXATO!
-                    mostrarErroNaTela("❌ ERRO DO FIREBASE:<br><br>" + err);
-                });
-            } else {
-                mostrarErroNaTela("⚠️ Permissão de notificação negada no Chrome.");
-            }
-        });
-    } else {
-        mostrarErroNaTela("❌ Erro: Firebase Messaging não carregou.");
-    }
-}
 
-// Cria uma caixa vermelha gigante que não some
-function mostrarErroNaTela(msg) {
-    const div = document.createElement('div');
-    div.style.cssText = "position:fixed; top:0; left:0; width:100%; background:#c62828; color:white; z-index:99999; padding:20px; font-size:16px; font-weight:bold; word-wrap:break-word; border-bottom:5px solid black; text-align:center;";
-    div.innerHTML = msg + "<br><br><button onclick='this.parentElement.remove()' style='padding:15px; background:white; color:black; border-radius:8px; border:none; width:100%; font-weight:bold; font-size:16px;'>FECHAR AVISO</button>";
-    document.body.prepend(div);
+        // 1. Registramos o Service Worker manualmente na pasta correta
+        navigator.serviceWorker.register('/App/firebase-messaging-sw.js')
+            .then((registration) => {
+                console.log("Service Worker registrado na pasta /App/!");
+
+                // 2. Agora pedimos o Token passando o registro que acabamos de fazer
+                return messaging.getToken({ 
+                    vapidKey: 'BBuqqHohXIynKIQwME9qSmy-e-p2iS2-x_Pry1alnt9-DVhajP-eXSF3VTA3NiE28tv4iHoR4MJlKGYkcvsQ6Pk',
+                    serviceWorkerRegistration: registration 
+                });
+            })
+            .then((currentToken) => {
+                if (currentToken) {
+                    // ... (seu código de salvar no Firestore continua aqui)
+                    alert("✅ SUCESSO! Token gerado e registrado via /App/!");
+                    if(auth.currentUser) {
+                        db.collection("dados_financeiros").doc(auth.currentUser.uid).set({
+                            tokenNotificacao: currentToken
+                        }, { merge: true });
+                    }
+                }
+            })
+            .catch((err) => {
+                alert("❌ Erro ao registrar Service Worker em /App/: " + err);
+            });
+    }
 }
