@@ -10,11 +10,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-messaging-compat.js"></script>
-  
 </head>
 <body>
 <div id="lock" class="lock" style="background: #0f0f14;">
@@ -110,18 +105,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script> 
 <script src="app.js"></script>
-<script>
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./service-worker.js')
-        .then((registration) => {
-            console.log('App Instalável Ativo!');
-            // Conecta o Service Worker ao motor de notificações
-            if (typeof firebase !== 'undefined' && firebase.messaging) {
-                firebase.messaging().useServiceWorker(registration);
-            }
-        })
-        .catch(err => console.error('Erro PWA:', err));
-    }
+  <script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/App/service-worker.js");
+    });
+  }
 </script>
 <div id="modalDecisao" class="modal" style="display:none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
   <div class="modal-conteudo" style="background: #1c1c26; padding: 25px; border-radius: 15px; text-align: center; width: 85%; max-width: 320px; border: 1px solid #333;">
