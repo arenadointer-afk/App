@@ -423,3 +423,37 @@ body.modo-privado .historico-resumo strong {
     border: none;
     cursor: pointer;
 }
+/* No seu arquivo style.css */
+.tela-fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #121212;
+    z-index: 9999;
+    padding: 20px;
+    color: white;
+    overflow-y: auto;
+    box-sizing: border-box; /* Garante que o padding não quebre o tamanho */
+}
+
+/* Ajuste para o conteúdo interno centralizar melhor */
+.config-container {
+    max-width: 500px;
+    margin: 0 auto;
+}
+:root {
+    --bg-color: #121212;
+    --text-color: #ffffff;
+    --card-bg: #1c1c26;
+}
+
+.light-mode {
+    --bg-color: #f4f4f9;
+    --text-color: #333333;
+    --card-bg: #ffffff;
+}
+
+body { background-color: var(--bg-color); color: var(--text-color); }
+.modal-conteudo { background-color: var(--card-bg); }

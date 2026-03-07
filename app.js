@@ -39,6 +39,26 @@ function fazerLoginFirebase() {
 // ========================================================
 auth.onAuthStateChanged(function(user) {
     if (user) {
+        // ... dentro do seu auth.onAuthStateChanged
+if (user) {
+    // ... seu código de login existente ...
+
+    // ADICIONE ESTE OUVINTE:
+    db.collection("usuarios").doc(user.uid).onSnapshot((doc) => {
+        if (doc.exists) {
+            const dados = doc.data();
+            // Atualiza a interface instantaneamente se os dados mudarem na nuvem
+            if(dados.fotoPerfil) {
+                document.getElementById("fotoPerfil").src = dados.fotoPerfil;
+                localStorage.setItem("fotoPerfil", dados.fotoPerfil);
+            }
+            if(dados.nome) {
+                document.getElementById("nomePerfil").innerText = "Bem-vindo, " + dados.nome;
+                localStorage.setItem("nomePerfil", dados.nome);
+            }
+        }
+    });
+}
         // 1. O USUÁRIO ESTÁ LOGADO NA NUVEM!
         // Esconde os campos de email/senha da tela inicial
         document.getElementById("loginEmail").style.display = "none";
@@ -1008,4 +1028,119 @@ function infoVencimento(dataISO) {
   if (diff < 0) return { texto: "VENCIDO", classe: "vencido" };
   if (diff === 0) return { texto: "vence hoje", classe: "hoje" };
   return { texto: `vence em: ${diff} dias`, classe: "normal" };
+}
+
+// 1. Salvar no Firebase
+async function salvarConfiguracoes() {
+    const uid = auth.currentUser.uid;
+    const nome = document.getElementById("inputNome").value;
+    const biometria = document.getElementById("checkBiometria").checked;
+    const foto = document.getElementById("previewImg").src;
+
+    await db.collection("usuarios").doc(uid).set({
+        nomeConta: nome,
+        biometriaAtivada: biometria,
+        fotoPerfil: foto
+    }, { merge: true });
+
+    alert("Configurações salvas!");
+    document.getElementById("modalConfig").style.display = 'none';
+}
+
+// 2. Carregar ao entrar
+async function carregarConfiguracoes() {
+    const uid = auth.currentUser.uid;
+    const doc = await db.collection("usuarios").doc(uid).get();
+    
+    if (doc.exists) {
+        const dados = doc.data();
+        document.getElementById("inputNome").value = dados.nomeConta || "";
+        document.getElementById("checkBiometria").checked = dados.biometriaAtivada || false;
+        document.getElementById("previewImg").src = dados.fotoPerfil || "";
+        
+        // Salvar localmente para facilitar o bloqueio
+        localStorage.setItem("biometriaAtivada", dados.biometriaAtivada);
+    }
+}
+/* ==========================================================
+   MÓDULO DE CONFIGURAÇÕES (ADICIONAR ISSO NO FINAL DO APP.JS)
+   ========================================================== */
+
+async function redimensionarImagem(base64) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 300; 
+            canvas.height = (300 / img.width) * img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+        };
+        img.onerror = () => resolve(base64); 
+    });
+}
+
+function abrirConfiguracoesDoApp() {
+    fecharOpcoes();
+    document.getElementById("app").style.display = "none";
+    document.getElementById("secaoConfiguracoes").style.display = "block";
+    const user = auth.currentUser;
+    if (!user) return;
+    db.collection("usuarios").doc(user.uid).get().then(doc => {
+        const d = doc.exists ? doc.data() : {};
+        document.getElementById("confNome").value = d.nome || "";
+        document.getElementById("confBiometria").checked = d.biometriaAtivada === true;
+        document.getElementById("confFoto").src = d.fotoPerfil || "https://via.placeholder.com/100";
+        document.getElementById("confEmail").value = user.email;
+    });
+}
+
+function fecharConfiguracoes() {
+    document.getElementById("secaoConfiguracoes").style.display = "none";
+    document.getElementById("app").style.display = "block";
+}
+
+function previewFotoConf(event) {
+    const reader = new FileReader();
+    reader.onload = () => document.getElementById('confFoto').src = reader.result;
+    reader.readAsDataURL(event.target.files[0]);
+}
+
+// Substitua sua salvarTudoConfig atual por esta:
+async function salvarTudoConfig() {
+    const user = auth.currentUser;
+    if (!user) return;
+    const nome = document.getElementById("confNome").value;
+    const bio = document.getElementById("confBiometria").checked;
+    const fotoOriginal = document.getElementById("confFoto").src;
+    
+    // Mostra um aviso rápido de salvando
+    alert("Salvando...");
+
+    try {
+        const fotoOtimizada = await redimensionarImagem(fotoOriginal);
+
+        // 1. Salva no Firestore
+        await db.collection("usuarios").doc(user.uid).set({
+            nome: nome,
+            biometriaAtivada: bio,
+            fotoPerfil: fotoOtimizada
+        }, { merge: true });
+
+        // 2. Atualiza o estado LOCAL IMEDIATAMENTE (sem recarregar a página)
+        localStorage.setItem("nomePerfil", nome);
+        localStorage.setItem("fotoPerfil", fotoOtimizada);
+        
+        // 3. Atualiza a tela (DOM) direto, sem location.reload()
+        document.getElementById("nomePerfil").innerText = "Bem-vindo, " + nome;
+        document.getElementById("fotoPerfil").src = fotoOtimizada;
+
+        alert("✅ Configurações salvas!");
+        fecharConfiguracoes(); // Apenas fecha a aba de config
+    } catch(e) {
+        console.error(e);
+        alert("Erro ao salvar: " + e.message);
+    }
 }
