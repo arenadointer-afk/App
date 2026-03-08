@@ -1,7 +1,7 @@
 {
-  "name": "Meus Gastos",
-  "short_name": "Gastos",
-  "description": "Controle de contas e vencimentos",
+  "name": "Sutello financeiro",
+  "short_name": "Sutello financeiro",
+  "description": "Gestão financeira",
   "start_url": "/App/",
   "scope": "/App/",
   "display": "standalone",
