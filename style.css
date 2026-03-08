@@ -28,13 +28,14 @@ body {
   border: none;
 }
 
-/* TOPO */
 .topo {
-  background: linear-gradient(135deg,#7b2ff7,#a445f7);
+  background: #000000; /* Fundo preto absoluto */
   padding: 15px;
   border-radius: 0 0 25px 25px;
   margin-bottom: 10px;
-  box-shadow: 0 4px 10px rgba(123, 47, 247, 0.4);
+  position: relative; /* Necessário para a marca d'água */
+  overflow: hidden;   /* Garante que o texto não vaze */
+  border-bottom: 1px solid #333;
 }
 
 .perfil {
@@ -172,21 +173,18 @@ body {
     font-weight: bold;
 }
 
-/* CONTAS CARD */
-.conta {
+/* CONTAS CARD */.conta {
   position: relative;
   background: linear-gradient(135deg,#1c1c26,#16161f);
   margin: 15px 10px;
   padding: 15px;
   border-radius: 18px;
-  border-right: 5px solid #ef5350; /* Vermelho padrão pendente */
+  border-right: 5px solid #000000; /* Agora a borda é preta absoluta */
   box-shadow: 0 4px 6px rgba(0,0,0,0.3);
   transition: transform .2s;
 }
 
-.conta.verde {
-  border-right: 5px solid #2ecc71;
-}
+
 
 .conta.atrasada {
   background: #ffcdd2;
@@ -270,11 +268,10 @@ body {
     cursor: pointer;
 }
 
-/* Botão da Seta Vermelha */
 .btn-expandir {
-    background: transparent !important;
-    border: 2px solid #ef5350 !important;
-    color: #ef5350 !important;
+    background: #ffffff !important; /* Fundo branco para ter contraste */
+    border: 2px solid #000000 !important; /* Borda preta */
+    color: #000000 !important; /* Ícone preto */
     width: 50px;
     font-size: 18px;
     display: flex;
@@ -286,8 +283,8 @@ body {
 }
 
 .btn-expandir.aberto {
-    background: #ef5350 !important;
-    color: white !important;
+    background: #000000 !important; /* Fundo preto */
+    color: #ffffff !important; /* Ícone branco para aparecer no fundo preto */
     transform: rotate(180deg);
 }
 
