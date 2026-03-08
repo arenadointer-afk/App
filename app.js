@@ -523,7 +523,7 @@ function garantirModalAdicionar() {
     const modalHtml = `
     <div id="modalNovaConta" class="modal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.8); align-items:center; justify-content:center;">
         <div class="modal-conteudo" style="background:#1c1c26; padding:20px; border-radius:15px; width:90%; max-width:350px; border:1px solid #444; color:white; text-align:left;">
-            <h3 style="margin-top:0; text-align:center; color:#7b2ff7;">➕ Nova Conta</h3>
+            <h3 style="margin-top:0; text-align:center; color:#ffffff;">➕ Nova Conta</h3>
             
             <label style="font-size:12px; color:#aaa;">Nome da conta</label>
             <input id="newNome" type="text" placeholder="Ex: Tênis Nike" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #444; background:#222; color:white;">
@@ -553,7 +553,7 @@ function garantirModalAdicionar() {
             </div>
 
             <div style="display:flex; gap:10px;">
-                <button onclick="salvarContaFormulario()" style="flex:1; background:#7b2ff7; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">SALVAR</button>
+                <button onclick="salvarContaFormulario()" style="flex:1; background:#2ecc71; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">SALVAR</button>
                 <button onclick="fecharModalAdicionar()" style="flex:1; background:transparent; border:1px solid #666; color:#ccc; padding:12px; border-radius:8px; cursor:pointer;">CANCELAR</button>
             </div>
         </div>
