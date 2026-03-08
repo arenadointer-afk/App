@@ -1,4 +1,4 @@
-const CACHE_NAME = "Sutello-V95";
+const CACHE_NAME = "Sutello-V65";
 
 const FILES_TO_CACHE = [
   "/App/",
