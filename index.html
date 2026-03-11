@@ -141,9 +141,10 @@
   let newWorker;
 
   if ("serviceWorker" in navigator) {
+    // Usando o v=Date.now para garantir que o navegador veja o arquivo novo no servidor
     navigator.serviceWorker.register("/App/service-worker.js?v=" + Date.now()).then(reg => {
       
-      // Se já houver um worker esperando (o usuário abriu o app e já tinha atualização)
+      // Checa se já existe uma atualização parada esperando
       if (reg.waiting) {
         newWorker = reg.waiting;
         exibirMensagemAtualizacao();
@@ -159,24 +160,21 @@
       });
     });
 
-    let refreshing;
+    // Esse evento é o que faz a página dar F5 quando você clica em "SIM"
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (refreshing) return;
       window.location.reload();
-      refreshing = true;
     });
   }
 
   function exibirMensagemAtualizacao() {
     mostrarConfirmacaoModal(
       "🚀 Atualização Disponível", 
-      "Deseja atualizar o app para a nova versão agora?", 
+      "Deseja atualizar para a nova versão agora?", 
       () => {
         if (newWorker) {
-          // Envia o comando para o worker
           newWorker.postMessage("SKIP_WAITING");
         } else {
-          // Caso de segurança: se a variável sumiu, tenta achar pelo registro
+          // Backup caso a variável se perca
           navigator.serviceWorker.getRegistration().then(reg => {
             if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
           });
@@ -185,6 +183,7 @@
     );
   }
 </script>
+
 
 
 </body>

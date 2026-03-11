@@ -1143,26 +1143,25 @@ async function salvarTudoConfig() {
         console.error(e);
         alert("Erro ao salvar: " + e.message);
     }
-}
-async function verificarAtualizacoesManualmente() {
-    if (!('serviceWorker' in navigator)) {
-        exibirMensagemModal("Aviso", "Seu navegador não suporta atualizações automáticas.");
-        return;
-    }
+}async function verificarAtualizacoesManualmente() {
+    if (!('serviceWorker' in navigator)) return;
     
     const registration = await navigator.serviceWorker.getRegistration();
     if (registration) {
-        // Exibe um feedback visual simples
-        exibirMensagemModal("Buscando...", "Verificando se há novas versões no servidor...");
+        exibirMensagemModal("Buscando...", "Verificando se há atualizações...");
         
-        // Força a checagem no servidor
+        // Força o navegador a ir no servidor agora
         await registration.update(); 
         
-        // Aguarda 2 segundos para dar tempo do navegador processar
+        // Se após o update ele achar algo, o evento 'updatefound' no index.html 
+        // vai disparar o modal automaticamente.
+        
+        // Se passar 3 segundos e nada acontecer, avisamos que já está atualizado
         setTimeout(() => {
             if (!registration.waiting && !registration.installing) {
-                exibirMensagemModal("✅ Atualizado", "Você já está usando a versão mais recente!");
+                exibirMensagemModal("✅ Tudo pronto", "Você já está usando a última versão!");
             }
-        }, 2000);
+        }, 3000);
     }
 }
+
