@@ -1,4 +1,4 @@
-const CACHE_NAME = "AtualizarApp35"; // Mude o nome para forçar a detecção agora
+const CACHE_NAME = "AtualizarApp_v3"; // MUDAR AQUI SEMPRE QUE ATUALIZAR O APP
 
 const FILES_TO_CACHE = [
   "/App/",
@@ -8,27 +8,27 @@ const FILES_TO_CACHE = [
   "/App/manifest.json"
 ];
 
-// Instala e salva cache
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(FILES_TO_CACHE))
   );
-  // REMOVIDO o self.skipWaiting() daqui para o modal funcionar!
 });
 
-// Ativa e limpa caches antigos
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
-        keys.map(key => key !== CACHE_NAME && caches.delete(key))
+        keys.map(key => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
       )
     )
   );
   self.clients.claim();
 });
 
-// Intercepta requisições
 self.addEventListener("fetch", event => {
   event.respondWith(
     caches.match(event.request).then(response => {
@@ -37,9 +37,9 @@ self.addEventListener("fetch", event => {
   );
 });
 
-// Escuta o comando do botão "SIM" do seu modal
+// Escuta a mensagem para pular a espera
 self.addEventListener('message', (event) => {
-  if (event.data === 'SKIP_WAITING') {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });

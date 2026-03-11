@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Sutello Financeiro</title>
+  <title>Meu Financeiro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="manifest" href="/App/manifest.json">
   <meta name="theme-color" content="#000000">
@@ -32,7 +32,7 @@
     <div class="perfil">
       <img id="fotoPerfil" src="https://via.placeholder.com/50" alt="Foto">
       <input type="file" id="uploadFoto" hidden accept="image/*">
-      <h2 id="nomePerfil" style="margin:0; font-size:18px;">Olá, Sutello.</h2>
+      <h2 id="nomePerfil" style="margin:0; font-size:18px;">Bem-vindo, Sutello.</h2>
     </div>
   </div>
 
@@ -141,10 +141,10 @@
   let newWorker;
 
   if ("serviceWorker" in navigator) {
-    // Usando o v=Date.now para garantir que o navegador veja o arquivo novo no servidor
-    navigator.serviceWorker.register("/App/service-worker.js?v=" + Date.now()).then(reg => {
+    // Registro limpo sem o Date.now no caminho do arquivo para evitar loop
+    navigator.serviceWorker.register("/App/service-worker.js").then(reg => {
       
-      // Checa se já existe uma atualização parada esperando
+      // Se já houver um esperando
       if (reg.waiting) {
         newWorker = reg.waiting;
         exibirMensagemAtualizacao();
@@ -160,30 +160,26 @@
       });
     });
 
-    // Esse evento é o que faz a página dar F5 quando você clica em "SIM"
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       window.location.reload();
     });
   }
 
   function exibirMensagemAtualizacao() {
-    mostrarConfirmacaoModal(
-      "🚀 Atualização Disponível", 
-      "Deseja atualizar para a nova versão agora?", 
-      () => {
-        if (newWorker) {
-          newWorker.postMessage("SKIP_WAITING");
-        } else {
-          // Backup caso a variável se perca
-          navigator.serviceWorker.getRegistration().then(reg => {
-            if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
-          });
-        }
-      }
-    );
+    // Usamos um pequeno atraso para garantir que o modal não apareça antes do app carregar
+    setTimeout(() => {
+        mostrarConfirmacaoModal(
+          "🚀 Nova Versão!", 
+          "Atualizações de segurança e design prontas. Atualizar agora?", 
+          () => {
+            if (newWorker) {
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          }
+        );
+    }, 1000);
   }
 </script>
-
 
 
 </body>

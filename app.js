@@ -1143,25 +1143,32 @@ async function salvarTudoConfig() {
         console.error(e);
         alert("Erro ao salvar: " + e.message);
     }
-}async function verificarAtualizacoesManualmente() {
+}
+async function verificarAtualizacoesManualmente() {
     if (!('serviceWorker' in navigator)) return;
     
     const registration = await navigator.serviceWorker.getRegistration();
     if (registration) {
-        exibirMensagemModal("Buscando...", "Verificando se há atualizações...");
+        exibirMensagemModal("Buscando...", "Verificando se há melhorias no servidor...");
         
-        // Força o navegador a ir no servidor agora
-        await registration.update(); 
-        
-        // Se após o update ele achar algo, o evento 'updatefound' no index.html 
-        // vai disparar o modal automaticamente.
-        
-        // Se passar 3 segundos e nada acontecer, avisamos que já está atualizado
-        setTimeout(() => {
-            if (!registration.waiting && !registration.installing) {
-                exibirMensagemModal("✅ Tudo pronto", "Você já está usando a última versão!");
-            }
-        }, 3000);
+        // O segredo para o botão manual funcionar:
+        try {
+            await registration.update();
+            
+            setTimeout(() => {
+                if (registration.waiting) {
+                    // Se achou, o modal automático do index.html deve abrir, 
+                    // mas se não abrir, forçamos aqui:
+                    newWorker = registration.waiting;
+                    fecharMensagemModal();
+                    exibirMensagemAtualizacao();
+                } else {
+                    exibirMensagemModal("✅ Atualizado", "Você já está na versão mais recente.");
+                }
+            }, 2000);
+        } catch (e) {
+            exibirMensagemModal("Aviso", "Não foi possível conectar ao servidor.");
+        }
     }
 }
 
