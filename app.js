@@ -1095,3 +1095,4 @@ async function verificarAtualizacoesManualmente() {
             exibirMensagemModal("✅ Tudo Pronto", "Você já está na versão mais recente!");
         }
     }, 3000);
+}
