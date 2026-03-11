@@ -1,4 +1,4 @@
-const CACHE_NAME = "AtualizarApp2";
+const CACHE_NAME = "AtualizarApp3";
 
 const FILES_TO_CACHE = [
   "/App/",
