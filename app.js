@@ -841,52 +841,6 @@ function compartilharIndividual(i) {
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(t)}`);
 }
 
-// PDF Profissional
-function baixarPdfMes(mes) {
-    if(!window.jspdf) { alert("Erro: jsPDF não carregado."); return; }
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    
-    doc.setFont("courier", "bold"); doc.setFontSize(16);
-    doc.text(`DEMONSTRATIVO - ${mes}`, 105, 20, {align:"center"});
-    
-    let y = 40; doc.setFontSize(10); doc.setFont("courier", "normal");
-    
-    let total = 0, pago = 0;
-    const itens = contas.filter(c => mesAno(c.vencimento)===mes);
-    
-    itens.forEach(c => {
-        if(c.oculta && !c.paga) return;
-        total += c.valor; if(c.paga) pago += c.valor;
-        
-        let nomeDisplay = c.nome;
-        if(c.totalParcelas > 0) nomeDisplay += ` (${c.parcelaAtual}/${c.totalParcelas})`;
-
-        doc.text(`${isoParaBR(c.vencimento)} | ${nomeDisplay.padEnd(20)} | R$ ${c.valor.toFixed(2)} | ${c.paga?"PAGO":"ABERTO"}`, 15, y);
-        y += 10;
-    });
-
-    doc.setFont("courier", "bold");
-    doc.text(`TOTAL: R$ ${total.toFixed(2)}  |  PAGO: R$ ${pago.toFixed(2)}`, 15, y+10);
-    doc.save(`Extrato_${mes.replace("/","-")}.pdf`);
-}
-
-function gerarComprovanteIndividual(i) {
-    if(!window.jspdf) return;
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const c = contas[i];
-    doc.rect(10, 10, 190, 100);
-    doc.setFontSize(20); doc.text("RECIBO", 105, 30, {align:"center"});
-    doc.setFontSize(14); 
-    doc.text(`Pagador: Sutello`, 20, 50);
-    doc.text(`Referente: ${c.nome} ${c.totalParcelas > 0 ? '('+c.parcelaAtual+'/'+c.totalParcelas+')' : ''}`, 20, 60);
-    doc.text(`Valor Parcela: R$ ${c.valor.toFixed(2)}`, 20, 70);
-    if(c.valorTotalOriginal) doc.text(`Valor Total Compra: R$ ${c.valorTotalOriginal}`, 20, 80);
-    doc.text(`Status: ${c.paga ? "PAGO ✅" : "PENDENTE ⭕"}`, 20, 90);
-    doc.save(`Recibo_${c.nome}.pdf`);
-}
-
 // Backup JSON
 function baixarBackup() {
     const d = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({contas, logs}));
@@ -949,23 +903,6 @@ function gerarComprovanteIndividual(i) {
     if(c.valorTotalOriginal) doc.text(`Valor Total Compra: R$ ${c.valorTotalOriginal}`, 20, 80);
     doc.text(`Status: ${c.paga ? "PAGO ✅" : "PENDENTE ⭕"}`, 20, 90);
     doc.save(`Recibo_${c.nome}.pdf`);
-}
-
-// Backup JSON
-function baixarBackup() {
-    const d = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({contas, logs}));
-    const a = document.createElement('a'); a.href = d; a.download = "backup_contas.json"; a.click();
-}
-function lerArquivoBackup(input) {
-    const f = input.files[0];
-    const r = new FileReader();
-    r.onload = e => {
-        try {
-            const d = JSON.parse(e.target.result);
-            if(d.contas) { contas = d.contas; logs = d.logs || []; salvar(); location.reload(); }
-        } catch(err) { alert("Arquivo inválido"); }
-    };
-    r.readAsText(f);
 }
 
 /* ================= 8. INICIALIZAÇÃO, PERFIL E UTILITÁRIOS ================= */
@@ -1158,4 +1095,3 @@ async function verificarAtualizacoesManualmente() {
             exibirMensagemModal("✅ Tudo Pronto", "Você já está na versão mais recente!");
         }
     }, 3000);
-}
