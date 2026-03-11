@@ -1147,34 +1147,15 @@ async function salvarTudoConfig() {
 /* ================= 9. SISTEMA DE ATUALIZAÇÃO ================= */
 
 async function verificarAtualizacoesManualmente() {
-    if (!('serviceWorker' in navigator)) {
-        exibirMensagemModal("Aviso", "Seu navegador não suporta atualizações.");
-        return;
-    }
+    exibirMensagemModal("Buscando...", "Verificando se há melhorias no servidor...");
     
-    const registration = await navigator.serviceWorker.getRegistration();
-    if (registration) {
-        exibirMensagemModal("Buscando...", "Verificando se há melhorias no servidor...");
-        
-        try {
-            // Força o navegador a checar o arquivo no servidor
-            await registration.update();
-            
-            setTimeout(() => {
-                // Se após o update existir algo esperando (waiting)
-                if (registration.waiting) {
-                    newWorker = registration.waiting;
-                    fecharModalDecisao();
-                    // Chama a função que está no seu INDEX.HTML
-                    exibirMensagemAtualizacao();
-                } else {
-                    exibirMensagemModal("✅ Atualizado", "Você já está na versão mais recente.");
-                }
-            }, 2000);
-        } catch (e) {
-            console.error("Erro ao atualizar:", e);
-            exibirMensagemModal("Aviso", "Não foi possível conectar ao servidor.");
+    // Chama a função que criamos no index.html
+    await checarVersaoServidor();
+    
+    // Se o modal de decisão não abrir em 3 segundos, é porque não há nada novo
+    setTimeout(() => {
+        if(document.getElementById("modalDecisao").style.display === "none") {
+            exibirMensagemModal("✅ Tudo Pronto", "Você já está na versão mais recente!");
         }
-    }
+    }, 3000);
 }
-// REMOVA QUALQUER CHAVE } QUE ESTIVER SOZINHA ABAIXO DISSO

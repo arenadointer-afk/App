@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <meta name="app-version" content="1.0.0">
   <title>Meu Financeiro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="manifest" href="/App/manifest.json">
@@ -15,7 +16,7 @@
 
 <div id="lock" class="lock" style="background: #0f0f14;">
   <div style="text-align:center; padding: 20px; max-width: 300px;">
-    <div style="font-size: 60px; margin-bottom: 20px;">🔐</div>
+    <div style="font-size: 60px; margin-bottom: 20px;">🛡️</div>
     <h2 style="color:white; margin-bottom: 10px;">Acesso Restrito</h2>
     <p style="color: #888; margin-bottom: 20px; font-size: 14px;">Identifique-se para continuar</p>
     
@@ -138,49 +139,46 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script> 
 <script src="app.js"></script>
 <script>
-  let newWorker;
-
+  // Registro Simples do Service Worker
   if ("serviceWorker" in navigator) {
-    // Registro limpo sem o Date.now no caminho do arquivo para evitar loop
-    navigator.serviceWorker.register("/App/service-worker.js").then(reg => {
-      
-      // Se já houver um esperando
-      if (reg.waiting) {
-        newWorker = reg.waiting;
-        exibirMensagemAtualizacao();
-      }
-
-      reg.addEventListener("updatefound", () => {
-        newWorker = reg.installing;
-        newWorker.addEventListener("statechange", () => {
-          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-            exibirMensagemAtualizacao();
-          }
-        });
-      });
-    });
-
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      window.location.reload();
-    });
+    navigator.serviceWorker.register("/App/service-worker.js");
   }
 
-  function exibirMensagemAtualizacao() {
-    // Usamos um pequeno atraso para garantir que o modal não apareça antes do app carregar
-    setTimeout(() => {
+  // Função que força a checagem no servidor
+  async function checarVersaoServidor() {
+    try {
+      // Busca o index.html do servidor ignorando o cache do navegador
+      const response = await fetch(window.location.href + "?t=" + Date.now(), { cache: "no-store" });
+      const text = await response.text();
+      
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, "text/html");
+      const versaoServidor = doc.querySelector('meta[name="app-version"]')?.content;
+      const versaoLocal = document.querySelector('meta[name="app-version"]')?.content;
+
+      // Se a versão lá em cima for diferente da daqui, avisa o usuário
+      if (versaoServidor && versaoLocal && versaoServidor !== versaoLocal) {
         mostrarConfirmacaoModal(
-          "🚀 Nova Versão!", 
-          "Atualizações de segurança e design prontas. Atualizar agora?", 
-          () => {
-            if (newWorker) {
-              newWorker.postMessage({ type: 'SKIP_WAITING' });
+          "🚀 Atualização Disponível",
+          `Nova versão ${versaoServidor} encontrada. Deseja atualizar o design e funções agora?`,
+          async () => {
+            // Limpa os caches salvos e recarrega a página do zero
+            if ('caches' in window) {
+              const keys = await caches.keys();
+              await Promise.all(keys.map(key => caches.delete(key)));
             }
+            window.location.reload(true);
           }
         );
-    }, 1000);
+      }
+    } catch (e) {
+      console.log("Busca de atualização falhou (provavelmente offline)");
+    }
   }
-</script>
 
+  // Verifica se há novidades 2 segundos após abrir
+  setTimeout(checarVersaoServidor, 2000);
+</script>
 
 </body>
 </html>
