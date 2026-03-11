@@ -1,4 +1,4 @@
-const CACHE_NAME = "AtualizarApp_v3"; // MUDAR AQUI SEMPRE QUE ATUALIZAR O APP
+const CACHE_NAME = "AtualizarApp1"; // MUDAR AQUI SEMPRE QUE ATUALIZAR O APP
 
 const FILES_TO_CACHE = [
   "/App/",
