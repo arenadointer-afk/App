@@ -1144,9 +1144,11 @@ async function salvarTudoConfig() {
         alert("Erro ao salvar: " + e.message);
     }
 }
-// Adicione esta função ao final do seu app.js
+/* ================= 9. SISTEMA DE ATUALIZAÇÃO (PLANO B) ================= */
+
 function verificarAtualizacaoForcada() {
-    const versaoNova = document.querySelector('meta[name="app-version"]')?.content;
+    const metaTag = document.querySelector('meta[name="app-version"]');
+    const versaoNova = metaTag ? metaTag.content : null;
     const versaoAntiga = localStorage.getItem("app_version_cache");
 
     if (versaoNova && versaoNova !== versaoAntiga) {
@@ -1159,18 +1161,57 @@ function verificarAtualizacaoForcada() {
             });
         }
 
-        // 2. Atualiza a versão salva
+        // 2. Atualiza a versão salva para não entrar em loop
         localStorage.setItem("app_version_cache", versaoNova);
 
-        // 3. Força o recarregamento ignorando o cache do navegador
+        // 3. Força o recarregamento
         setTimeout(() => {
             window.location.reload(true);
-        }, 500);
+        }, 800);
     }
 }
 
-// Chame a função dentro do listener de inicialização que já existe no seu código
+// INICIALIZAÇÃO CORRIGIDA
 document.addEventListener("DOMContentLoaded", () => {
-    verificarAtualizacaoForcada(); // <--- Adicione esta linha aqui
+    // Primeiro verifica se precisa atualizar
+    verificarAtualizacaoForcada(); 
+
     try {
-        // ... restante do seu código de init ...
+        // Carrega dados locais
+        const dados = localStorage.getItem("contas");
+        if(dados) contas = JSON.parse(dados);
+        
+        const l = localStorage.getItem("logs");
+        if(l) logs = JSON.parse(l);
+        
+        if(localStorage.getItem("modoPrivado") === "true") {
+            document.body.classList.add("modo-privado");
+        }
+        
+        carregarPerfil();
+        
+        // Configura o clique da foto
+        const imgPerfil = document.getElementById("fotoPerfil");
+        const inputUpload = document.getElementById("uploadFoto");
+        if(imgPerfil && inputUpload) {
+            imgPerfil.onclick = () => inputUpload.click();
+            inputUpload.onchange = e => {
+                const r = new FileReader();
+                r.onload = () => { 
+                    localStorage.setItem("fotoPerfil", r.result); 
+                    imgPerfil.src = r.result; 
+                };
+                r.readAsDataURL(e.target.files[0]);
+            };
+        }
+
+        // Tenta biometria se já estiver logado no Firebase
+        auth.onAuthStateChanged(user => {
+            if (user) tentarAutoLogin();
+        });
+
+    } catch(e) { 
+        console.error("Erro no init:", e); 
+    }
+}); // <--- Chave de fechamento que faltava
+
