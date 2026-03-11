@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Sutello Financeiro</title>
+  <title>Meu Financeiro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="manifest" href="/App/manifest.json">
   <meta name="theme-color" content="#000000">
@@ -15,8 +15,8 @@
 
 <div id="lock" class="lock" style="background: #0f0f14;">
   <div style="text-align:center; padding: 20px; max-width: 300px;">
-    <div style="font-size: 60px; margin-bottom: 20px;">🔐</div>
-    <h2 style="color:white; margin-bottom: 10px;">Restrito</h2>
+    <div style="font-size: 60px; margin-bottom: 20px;">🛡️</div>
+    <h2 style="color:white; margin-bottom: 10px;">Acesso Restrito</h2>
     <p style="color: #888; margin-bottom: 20px; font-size: 14px;">Identifique-se para continuar</p>
     
     <input type="email" id="loginEmail" placeholder="E-mail" style="width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #444; background: #222; color: white; margin-bottom: 10px;">
@@ -32,7 +32,7 @@
     <div class="perfil">
       <img id="fotoPerfil" src="https://via.placeholder.com/50" alt="Foto">
       <input type="file" id="uploadFoto" hidden accept="image/*">
-      <h2 id="nomePerfil" style="margin:0; font-size:18px;">Olá, Sutello.</h2>
+      <h2 id="nomePerfil" style="margin:0; font-size:18px;">Bem-vindo, Sutello.</h2>
     </div>
   </div>
 
@@ -44,7 +44,7 @@
   <div id="lista" class="lista"></div>
 
   <div id="historicoLogs" style="display:none; padding: 15px; padding-bottom: 80px;">
-      <h2 style="text-align:center;">Histórico de Atividades</h2>
+      <h2 style="text-align:center;">📜 Registro de Atividades</h2>
       <div style="text-align:center; margin-bottom:15px;">
         <button onclick="limparLogs('dia')" style="background:#555; border:none; padding:5px 10px; border-radius:5px; color:white; margin:2px;">Limpar Hoje</button>
         <button onclick="limparLogs('mes')" style="background:#555; border:none; padding:5px 10px; border-radius:5px; color:white; margin:2px;">Limpar Mês</button>
@@ -55,7 +55,7 @@
   </div>
 
   <div class="rodape">
-    <button onclick="adicionarConta()">➕ Adiconar</button>
+    <button onclick="adicionarConta()">➕ Nova</button>
     <button onclick="abrirHistorico()">📊 Histórico</button>
     <button onclick="abrirCalculadora()">🧮 Calc</button>
     <button onclick="abrirOpcoes()">⚙️ Opções</button>

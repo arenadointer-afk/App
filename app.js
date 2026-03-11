@@ -1144,31 +1144,37 @@ async function salvarTudoConfig() {
         alert("Erro ao salvar: " + e.message);
     }
 }
+/* ================= 9. SISTEMA DE ATUALIZAÇÃO ================= */
+
 async function verificarAtualizacoesManualmente() {
-    if (!('serviceWorker' in navigator)) return;
+    if (!('serviceWorker' in navigator)) {
+        exibirMensagemModal("Aviso", "Seu navegador não suporta atualizações.");
+        return;
+    }
     
     const registration = await navigator.serviceWorker.getRegistration();
     if (registration) {
         exibirMensagemModal("Buscando...", "Verificando se há melhorias no servidor...");
         
-        // O segredo para o botão manual funcionar:
         try {
+            // Força o navegador a checar o arquivo no servidor
             await registration.update();
             
             setTimeout(() => {
+                // Se após o update existir algo esperando (waiting)
                 if (registration.waiting) {
-                    // Se achou, o modal automático do index.html deve abrir, 
-                    // mas se não abrir, forçamos aqui:
                     newWorker = registration.waiting;
-                    fecharMensagemModal();
+                    fecharModalDecisao();
+                    // Chama a função que está no seu INDEX.HTML
                     exibirMensagemAtualizacao();
                 } else {
                     exibirMensagemModal("✅ Atualizado", "Você já está na versão mais recente.");
                 }
             }, 2000);
         } catch (e) {
+            console.error("Erro ao atualizar:", e);
             exibirMensagemModal("Aviso", "Não foi possível conectar ao servidor.");
         }
     }
 }
-
+// REMOVA QUALQUER CHAVE } QUE ESTIVER SOZINHA ABAIXO DISSO

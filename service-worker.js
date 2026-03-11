@@ -1,4 +1,4 @@
-const CACHE_NAME = "AtualizarAppv11"; // MUDAR AQUI SEMPRE QUE ATUALIZAR O APP
+const CACHE_NAME = "AtualizarApp_v3"; // MUDAR AQUI SEMPRE QUE ATUALIZAR O APP
 
 const FILES_TO_CACHE = [
   "/App/",
@@ -37,9 +37,12 @@ self.addEventListener("fetch", event => {
   );
 });
 
-// Escuta a mensagem para pular a espera
+// Escuta a mensagem para pular a espera (adicione isso no fim do service-worker.js)
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  // Ajustado para aceitar objeto ou string direta
+  const type = event.data && event.data.type ? event.data.type : event.data;
+  
+  if (type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
