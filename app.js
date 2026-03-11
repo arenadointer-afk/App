@@ -523,7 +523,7 @@ function garantirModalAdicionar() {
     const modalHtml = `
     <div id="modalNovaConta" class="modal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.8); align-items:center; justify-content:center;">
         <div class="modal-conteudo" style="background:#1c1c26; padding:20px; border-radius:15px; width:90%; max-width:350px; border:1px solid #444; color:white; text-align:left;">
-            <h3 style="margin-top:0; text-align:center; color:#7b2ff7;">➕ Nova Conta</h3>
+            <h3 style="margin-top:0; text-align:center; color:#ffffff;">➕ Nova Conta</h3>
             
             <label style="font-size:12px; color:#aaa;">Nome da conta</label>
             <input id="newNome" type="text" placeholder="Ex: Tênis Nike" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #444; background:#222; color:white;">
@@ -553,7 +553,7 @@ function garantirModalAdicionar() {
             </div>
 
             <div style="display:flex; gap:10px;">
-                <button onclick="salvarContaFormulario()" style="flex:1; background:#7b2ff7; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">SALVAR</button>
+                <button onclick="salvarContaFormulario()" style="flex:1; background:#2ecc71; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">SALVAR</button>
                 <button onclick="fecharModalAdicionar()" style="flex:1; background:transparent; border:1px solid #666; color:#ccc; padding:12px; border-radius:8px; cursor:pointer;">CANCELAR</button>
             </div>
         </div>
@@ -841,6 +841,52 @@ function compartilharIndividual(i) {
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(t)}`);
 }
 
+// PDF Profissional
+function baixarPdfMes(mes) {
+    if(!window.jspdf) { alert("Erro: jsPDF não carregado."); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    doc.setFont("courier", "bold"); doc.setFontSize(16);
+    doc.text(`DEMONSTRATIVO - ${mes}`, 105, 20, {align:"center"});
+    
+    let y = 40; doc.setFontSize(10); doc.setFont("courier", "normal");
+    
+    let total = 0, pago = 0;
+    const itens = contas.filter(c => mesAno(c.vencimento)===mes);
+    
+    itens.forEach(c => {
+        if(c.oculta && !c.paga) return;
+        total += c.valor; if(c.paga) pago += c.valor;
+        
+        let nomeDisplay = c.nome;
+        if(c.totalParcelas > 0) nomeDisplay += ` (${c.parcelaAtual}/${c.totalParcelas})`;
+
+        doc.text(`${isoParaBR(c.vencimento)} | ${nomeDisplay.padEnd(20)} | R$ ${c.valor.toFixed(2)} | ${c.paga?"PAGO":"ABERTO"}`, 15, y);
+        y += 10;
+    });
+
+    doc.setFont("courier", "bold");
+    doc.text(`TOTAL: R$ ${total.toFixed(2)}  |  PAGO: R$ ${pago.toFixed(2)}`, 15, y+10);
+    doc.save(`Extrato_${mes.replace("/","-")}.pdf`);
+}
+
+function gerarComprovanteIndividual(i) {
+    if(!window.jspdf) return;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const c = contas[i];
+    doc.rect(10, 10, 190, 100);
+    doc.setFontSize(20); doc.text("RECIBO", 105, 30, {align:"center"});
+    doc.setFontSize(14); 
+    doc.text(`Pagador: Sutello`, 20, 50);
+    doc.text(`Referente: ${c.nome} ${c.totalParcelas > 0 ? '('+c.parcelaAtual+'/'+c.totalParcelas+')' : ''}`, 20, 60);
+    doc.text(`Valor Parcela: R$ ${c.valor.toFixed(2)}`, 20, 70);
+    if(c.valorTotalOriginal) doc.text(`Valor Total Compra: R$ ${c.valorTotalOriginal}`, 20, 80);
+    doc.text(`Status: ${c.paga ? "PAGO ✅" : "PENDENTE ⭕"}`, 20, 90);
+    doc.save(`Recibo_${c.nome}.pdf`);
+}
+
 // Backup JSON
 function baixarBackup() {
     const d = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({contas, logs}));
@@ -903,6 +949,23 @@ function gerarComprovanteIndividual(i) {
     if(c.valorTotalOriginal) doc.text(`Valor Total Compra: R$ ${c.valorTotalOriginal}`, 20, 80);
     doc.text(`Status: ${c.paga ? "PAGO ✅" : "PENDENTE ⭕"}`, 20, 90);
     doc.save(`Recibo_${c.nome}.pdf`);
+}
+
+// Backup JSON
+function baixarBackup() {
+    const d = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({contas, logs}));
+    const a = document.createElement('a'); a.href = d; a.download = "backup_contas.json"; a.click();
+}
+function lerArquivoBackup(input) {
+    const f = input.files[0];
+    const r = new FileReader();
+    r.onload = e => {
+        try {
+            const d = JSON.parse(e.target.result);
+            if(d.contas) { contas = d.contas; logs = d.logs || []; salvar(); location.reload(); }
+        } catch(err) { alert("Arquivo inválido"); }
+    };
+    r.readAsText(f);
 }
 
 /* ================= 8. INICIALIZAÇÃO, PERFIL E UTILITÁRIOS ================= */
@@ -1081,18 +1144,33 @@ async function salvarTudoConfig() {
         alert("Erro ao salvar: " + e.message);
     }
 }
-/* ================= 9. SISTEMA DE ATUALIZAÇÃO ================= */
+// Adicione esta função ao final do seu app.js
+function verificarAtualizacaoForcada() {
+    const versaoNova = document.querySelector('meta[name="app-version"]')?.content;
+    const versaoAntiga = localStorage.getItem("app_version_cache");
 
-async function verificarAtualizacoesManualmente() {
-    exibirMensagemModal("Buscando...", "Verificando se há melhorias no servidor...");
-    
-    // Chama a função que criamos no index.html
-    await checarVersaoServidor();
-    
-    // Se o modal de decisão não abrir em 3 segundos, é porque não há nada novo
-    setTimeout(() => {
-        if(document.getElementById("modalDecisao").style.display === "none") {
-            exibirMensagemModal("✅ Tudo Pronto", "Você já está na versão mais recente!");
+    if (versaoNova && versaoNova !== versaoAntiga) {
+        console.log("Nova versão detectada: " + versaoNova);
+        
+        // 1. Limpa os caches do Service Worker
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                for (let name of names) caches.delete(name);
+            });
         }
-    }, 3000);
+
+        // 2. Atualiza a versão salva
+        localStorage.setItem("app_version_cache", versaoNova);
+
+        // 3. Força o recarregamento ignorando o cache do navegador
+        setTimeout(() => {
+            window.location.reload(true);
+        }, 500);
+    }
 }
+
+// Chame a função dentro do listener de inicialização que já existe no seu código
+document.addEventListener("DOMContentLoaded", () => {
+    verificarAtualizacaoForcada(); // <--- Adicione esta linha aqui
+    try {
+        // ... restante do seu código de init ...
