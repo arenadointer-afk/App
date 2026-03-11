@@ -1,4 +1,4 @@
-const CACHE_NAME = "Leonardosutello2026";
+const CACHE_NAME = "Leonardosutello2026-01";
 
 const FILES_TO_CACHE = [
   "/App/",
