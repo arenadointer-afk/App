@@ -1151,9 +1151,15 @@ function verificarAtualizacaoForcada() {
     const versaoNova = metaTag ? metaTag.content : null;
     const versaoAntiga = localStorage.getItem("app_version_cache");
 
+    // Se as versões forem diferentes
     if (versaoNova && versaoNova !== versaoAntiga) {
-        console.log("Nova versão detectada: " + versaoNova);
         
+        // Cria o aviso visual na tela
+        const toast = document.createElement("div");
+        toast.className = "toast-atualizacao";
+        toast.innerHTML = "✨ Atualizando para a versão " + versaoNova + "...";
+        document.body.appendChild(toast);
+
         // 1. Limpa os caches do Service Worker
         if ('caches' in window) {
             caches.keys().then(names => {
@@ -1161,15 +1167,16 @@ function verificarAtualizacaoForcada() {
             });
         }
 
-        // 2. Atualiza a versão salva para não entrar em loop
+        // 2. Atualiza a versão salva
         localStorage.setItem("app_version_cache", versaoNova);
 
-        // 3. Força o recarregamento
+        // 3. Recarrega após 1.5 segundos (tempo para o usuário ver o aviso)
         setTimeout(() => {
             window.location.reload(true);
-        }, 800);
+        }, 1500);
     }
 }
+
 
 // INICIALIZAÇÃO CORRIGIDA
 document.addEventListener("DOMContentLoaded", () => {
