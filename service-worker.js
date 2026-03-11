@@ -1,4 +1,4 @@
-const CACHE_NAME = "Leonardosutello2026";
+const CACHE_NAME = "AtualizarApp1";
 
 const FILES_TO_CACHE = [
   "/App/",
@@ -37,4 +37,10 @@ self.addEventListener("fetch", event => {
       return response || fetch(event.request);
     })
   );
+});
+// Adicione isso ao final do seu arquivo service-worker.js
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

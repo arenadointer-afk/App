@@ -84,11 +84,15 @@
     <button onclick="document.getElementById('inputRestore').click()" style="background:#333; color:white; margin-bottom:10px;">📂 Restaurar Backup</button>
     <input type="file" id="inputRestore" hidden onchange="lerArquivoBackup(this)" accept=".json">
     
+    <button onclick="verificarAtualizacoesManualmente()" style="background:#3498db; color:white; margin-bottom:10px;">🔄 Verificar Atualizações</button>
+    
     <button onclick="abrirConfiguracoesDoApp()" style="background:#4a4a5a; color:white; margin-bottom:10px;">⚙️ Configurações do Perfil</button>
     
     <button onclick="fecharOpcoes()" style="background:#9e9e9e; color:white;">❌ Fechar</button>
   </div>
 </div>
+
+
 
 <div id="modalDecisao" class="modal" style="display:none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
   <div class="modal-conteudo" style="background: #1c1c26; padding: 25px; border-radius: 15px; text-align: center; width: 85%; max-width: 320px; border: 1px solid #333;">
@@ -134,11 +138,40 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script> 
 <script src="app.js"></script>
 <script>
+  let newWorker;
+
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("/App/service-worker.js");
+    // O + Date.now() garante que o navegador sempre verifique se há versão nova no servidor
+    navigator.serviceWorker.register("/App/service-worker.js?v=" + Date.now()).then(reg => {
+      
+      // Monitora se um novo Service Worker foi encontrado
+      reg.addEventListener("updatefound", () => {
+        newWorker = reg.installing;
+        newWorker.addEventListener("statechange", () => {
+          // Quando o novo arquivo terminar de baixar e estiver pronto para assumir
+          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+            // Usa sua função mostrarConfirmacaoModal que já existe no app.js
+            mostrarConfirmacaoModal(
+              "🚀 Atualização Disponível", 
+              "Há novas funções prontas. Deseja atualizar o app agora?", 
+              () => {
+                newWorker.postMessage("SKIP_WAITING");
+              }
+            );
+          }
+        });
+      });
+    });
+
+    // Quando o novo Service Worker assumir o controle, a página recarrega sozinha
+    let refreshing;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (refreshing) return;
+      window.location.reload();
+      refreshing = true;
     });
   }
 </script>
+
 </body>
 </html>
