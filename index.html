@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Sutello Financeiro</title>
+  <title>Meu Financeiro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="manifest" href="/App/manifest.json">
   <meta name="theme-color" content="#000000">
@@ -32,7 +32,7 @@
     <div class="perfil">
       <img id="fotoPerfil" src="https://via.placeholder.com/50" alt="Foto">
       <input type="file" id="uploadFoto" hidden accept="image/*">
-      <h2 id="nomePerfil" style="margin:0; font-size:18px;">Olá, Sutello.</h2>
+      <h2 id="nomePerfil" style="margin:0; font-size:18px;">Bem-vindo, Sutello.</h2>
     </div>
   </div>
 
@@ -141,29 +141,24 @@
   let newWorker;
 
   if ("serviceWorker" in navigator) {
-    // O + Date.now() garante que o navegador sempre verifique se há versão nova no servidor
     navigator.serviceWorker.register("/App/service-worker.js?v=" + Date.now()).then(reg => {
       
-      // Monitora se um novo Service Worker foi encontrado
+      // Se já houver um worker esperando (o usuário abriu o app e já tinha atualização)
+      if (reg.waiting) {
+        newWorker = reg.waiting;
+        exibirMensagemAtualizacao();
+      }
+
       reg.addEventListener("updatefound", () => {
         newWorker = reg.installing;
         newWorker.addEventListener("statechange", () => {
-          // Quando o novo arquivo terminar de baixar e estiver pronto para assumir
           if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-            // Usa sua função mostrarConfirmacaoModal que já existe no app.js
-            mostrarConfirmacaoModal(
-              "🚀 Atualização Disponível", 
-              "Há novas funções prontas. Deseja atualizar o app agora?", 
-              () => {
-                newWorker.postMessage("SKIP_WAITING");
-              }
-            );
+            exibirMensagemAtualizacao();
           }
         });
       });
     });
 
-    // Quando o novo Service Worker assumir o controle, a página recarrega sozinha
     let refreshing;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if (refreshing) return;
@@ -171,7 +166,26 @@
       refreshing = true;
     });
   }
+
+  function exibirMensagemAtualizacao() {
+    mostrarConfirmacaoModal(
+      "🚀 Atualização Disponível", 
+      "Deseja atualizar o app para a nova versão agora?", 
+      () => {
+        if (newWorker) {
+          // Envia o comando para o worker
+          newWorker.postMessage("SKIP_WAITING");
+        } else {
+          // Caso de segurança: se a variável sumiu, tenta achar pelo registro
+          navigator.serviceWorker.getRegistration().then(reg => {
+            if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
+          });
+        }
+      }
+    );
+  }
 </script>
+
 
 </body>
 </html>
