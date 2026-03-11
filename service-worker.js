@@ -1,4 +1,4 @@
-const CACHE_NAME = "AtualizarApp_v2"; // Mude o nome para forçar a detecção agora
+const CACHE_NAME = "AtualizarApp_v22"; // Mude o nome para forçar a detecção agora
 
 const FILES_TO_CACHE = [
   "/App/",
