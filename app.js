@@ -346,7 +346,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /* ================= MOTOR SUTELLO AI ================= */
-const GEMINI_API_KEY = "AQ.Ab8RN6K-SYKroYWXVkSAypyDe10R-wBWH5KKcNZXbXTdh_ZfMA"; 
+const GEMINI_API_KEY = "AQ.Ab8RN6L1lyZ2ZRfEhB0l5eGMvp4aNOBka1-E5RkzGlEno4RrwA"; 
 
 function abrirChatSutello() { document.getElementById("modalChatSutello").style.display = "flex"; }
 function fecharChatSutello() { document.getElementById("modalChatSutello").style.display = "none"; }
