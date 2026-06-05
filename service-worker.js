@@ -1,4 +1,4 @@
-const CACHE_NAME = "Versao1.0"; // Mudei o nome para forçar atualização
+const CACHE_NAME = "Versao1.1"; // Mudei o nome para forçar atualização
 
 const FILES_TO_CACHE = [
   "/App/",
